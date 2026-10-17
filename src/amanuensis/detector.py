@@ -72,10 +72,19 @@ def corte_xy(cajas):
     return rec(list(range(len(cajas))))
 
 
-def orden_lectura(cajas, modo="columnas"):
-    """Ver detector.orden_lectura: columnas primero (impreso moderno) o «xy» (manuscritos)."""
+def orden_lectura(cajas, modo="aprendido", tam=None):
+    """«aprendido» (por defecto si hay pesos y se conoce el tamaño de la página): orden por pares (orden.py);
+    «columnas»: corte XY con canales de columna (impreso moderno); «xy»: corte XY simple (manuscritos)."""
     if modo == "xy":
         return corte_xy(cajas)
+    if modo == "aprendido" and tam is not None and len(cajas) > 1 and len(cajas) <= 400:
+        from . import orden
+
+        m = orden.modelo()
+        if m is not None:
+            return orden.ordenar(m, cajas, tam)
+    if modo == "aprendido":
+        modo = "columnas"
     if len(cajas) <= 1:
         return list(range(len(cajas)))
     hmed = float(np.median([c[3] - c[1] for c in cajas]))
@@ -161,11 +170,11 @@ class _Base:
         x[:h] = r
         return (x if fondo_blanco_1 else 1.0 - x), esc
 
-    def cajas(self, nuc, esc, tam, modo="columnas"):
+    def cajas(self, nuc, esc, tam, modo="aprendido"):
         W0, H0 = tam
         cs = [[max(0, b[0] / esc), max(0, b[1] / esc), min(W0, b[2] / esc), min(H0, b[3] / esc)]
               for b in cajas_desde_mapa(nuc, self.umbral, 4.0, self.escala_alto)]
-        return [cs[i] for i in orden_lectura(cs, modo)]
+        return [cs[i] for i in orden_lectura(cs, modo, tam)]
 
 
 class DetectorMini(_Base):
@@ -174,7 +183,7 @@ class DetectorMini(_Base):
         self.ancho, self.umbral, self.escala_alto = c.get("ancho", 768), c.get("umbral", 0.5), c.get("escala_alto", 0.8)
         self.s = sesion(os.path.join(carpeta, c.get("fichero", "det.onnx")), hilos, proveedores)
 
-    def detectar(self, pagina: Image.Image, modo="columnas"):
+    def detectar(self, pagina: Image.Image, modo="aprendido"):
         x, esc = self._lienzo(pagina, False)
         lg = self.s.run(None, {"x": x[None, None]})[0][0, 0]
         nuc = 1.0 / (1.0 + np.exp(-lg))
@@ -191,7 +200,7 @@ class DetectorEG2(_Base):
         self.cod = sesion(os.path.join(carpeta, f"codificador_{variante}.onnx"), hilos, proveedores)
         self.det = sesion(os.path.join(carpeta, "detector_fp16.onnx"), hilos, proveedores)
 
-    def detectar(self, pagina: Image.Image, modo="columnas"):
+    def detectar(self, pagina: Image.Image, modo="aprendido"):
         x, esc = self._lienzo(pagina, True)
         est, extra = self.cod.run(["estados", "extra"], {"pixeles": x[None]})
         tipo = self.det.get_inputs()[0].type

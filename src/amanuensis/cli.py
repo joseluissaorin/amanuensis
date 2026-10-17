@@ -101,6 +101,7 @@ def main(argv=None):
     ap.add_argument("--maqueta", default="auto", choices=["auto", "si", "no"], help="maquetación completa del proyecto (zonas, líneas con base, orden)")
     ap.add_argument("--modo", default="auto", choices=["auto", "ocr", "texto"], help="PDF: capa de texto si es fiable (auto), siempre OCR, o siempre la capa")
     ap.add_argument("--dpi", type=int, default=200)
+    ap.add_argument("--enderezar", default="auto", choices=["auto", "si", "no"], help="corregir inclinación y giro (90/180/270) de páginas escaneadas o fotografiadas; auto: sí salvo con -r")
     ap.add_argument("--imagenes", default="auto", choices=["auto", "si", "no"], help="extraer figuras, grabados, capitulares y sellos (con la maquetación completa)")
     ap.add_argument("--paginas", type=int, default=0, help="como mucho N páginas por fichero")
     ap.add_argument("--dispositivo", default="auto", choices=["auto", "cpu", "gpu"])
@@ -115,7 +116,7 @@ def main(argv=None):
             ap.error(f"formato desconocido: {f}")
     from .motor import Motor
 
-    m = Motor(a.modelo, a.maqueta, a.modo, a.dpi, a.dispositivo, a.hilos, not a.silencio, a.rapido, a.imagenes)
+    m = Motor(a.modelo, a.maqueta, a.modo, a.dpi, a.dispositivo, a.hilos, not a.silencio, a.rapido, a.imagenes, {"auto": None, "si": True, "no": False}[a.enderezar])
     lista = list(entradas(a.entradas, EXT_DOC))
     fallos = 0
     for p in lista:

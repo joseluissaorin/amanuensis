@@ -19,6 +19,7 @@ import tempfile
 import time
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 from . import imagen as I
@@ -48,8 +49,10 @@ def proveedores(dispositivo: str):
 
 class Motor:
     def __init__(self, modelo="auto", maqueta="auto", modo="auto", dpi=200, dispositivo="auto", hilos=0, verbose=True, rapido=False,
-                 imagenes="auto"):
+                 imagenes="auto", enderezar=None):
         self.rapido = rapido
+        # enderezar (inclinación y giro de la página): por defecto sí, salvo en el modo rápido (cuesta ~0,1 s/pág.)
+        self.enderezar = (not rapido) if enderezar is None else enderezar
         if rapido and maqueta == "auto":
             maqueta = "no"
         self.modelo, self.maqueta, self.modo, self.dpi = modelo, maqueta, modo, dpi
@@ -145,8 +148,16 @@ class Motor:
                 cajas = [l["caja"] for l in mq[k]["lineas"]]
                 fuente = f"ocr ({'maqueta ' + mq[k].get('tipo', '')})"
             else:
+                giro = incl = 0
+                if self.enderezar:
+                    from . import orientacion as O
+
+                    img, incl = O.enderezar(img)
                 cajas = self.detector().detectar(img)
-                fuente = "ocr (detector)"
+                cadena0 = "ligero" if self.modelo == "auto" else self.modelo
+                if self.enderezar and cadena0 in ("ligero", "minimo"):
+                    img, giro, cajas = O.orientar(img, cajas, self.detector().detectar, self.lector(cadena0).leer)
+                fuente = "ocr (detector" + (f", giro {giro}°" if giro else "") + (f", inclinación {incl}°" if incl else "") + ")"
             lineas = self.leer_lineas(img, cajas)
             if mq is not None:
                 zs = mq[k].get("zonas", [])

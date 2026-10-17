@@ -29,6 +29,13 @@ error de caracteres en %.
   con aumentos de escaneo, giro, curvatura y sombra. Entrenado solo con impreso: en manuscritos segmenta mal.
 - Licencia de uso: Apache 2.0.
 
+## Orden de lectura ligero (empaquetado, `orden_ligero.npz`, 27 KB)
+
+- Perceptrón de 3 capas (64) sobre 28 rasgos geométricos por pareja de líneas, con contexto de página; decodificación
+  por inserciones. Entrenado con las cajas que da el detector Mínimo en 12 067 páginas de PDF nacidos digitales
+  (corpus privado, documentos disjuntos de los bancos), con el orden de sus líneas en el PDF como referencia.
+  Acierto de pares en validación (665 páginas): 95,7 %. Licencia de uso: Apache 2.0.
+
 ## Histórico (`historico`, v2b96) y Multilingüe (`multilingue`, ml_v1)
 
 - EmbeddingGemma 2 (visión, 14 capas) + LoRA de rango 32 + cabeza CTC; 8 bits por fila (ONNX MatMulNBits).

@@ -21,6 +21,8 @@ amanuensis documento.pdf                    # Markdown por la salida estándar
 | Parámetros del lector | 1,24 M | sin medir | **1,07 M** | 3,5 M |
 | Impreso moderno, líneas (CER limpio / degradado) | 0,84 / 9,06 | 9,69 / 15,80 | **0,28 / 4,46** | **0,21 / 4,00** |
 | Páginas con sus líneas (CER limpio / degradado) | 0,72 / 5,25 | sin medir | 0,43 / 3,22 | **0,38 / 2,69** |
+| Páginas de punta a punta: detector, orden y lector (CER limpio / degradado) | 4,18 / 8,94 | 7,18 / 10,25 | 3,21 / 6,60 | **3,17 / 6,22** |
+| Ídem, F1 de palabras (limpio / degradado) | 95,0 / 87,6 | 92,8 / 85,8 | 97,1 / 87,9 | **97,3 / 88,9** |
 | Manuscritos e impresos antiguos (CER de línea) | 76,1 | 74,7 | 28,1 | **24,9** |
 | Páginas por segundo, CPU de un portátil (14 procesos) | 33,9 | sin medir | **34,0** | 19,1 |
 
@@ -45,6 +47,8 @@ EmbeddingGemma 2 + adaptador LoRA) el error en manuscritos baja al 20 %.
   Iconclass recuperado por similitud (no generado).
 - **Voz**: audio o vídeo a **texto, SRT, VTT o JSON** con el inicio y el fin de cada palabra (español, catalán,
   gallego, euskera y portugués; más lenguas en la próxima versión).
+- **Orden de lectura aprendido** (un perceptrón diminuto por pares de líneas, 27 KB) y **páginas derechas**:
+  corrige la inclinación y los giros de 90, 180 y 270 grados de escaneos y fotos.
 - **Local**: nada sale de tu máquina. Los pesos (de 4 MB a 350 MB) se descargan solos la primera vez.
 
 ## Instalar
@@ -129,6 +133,8 @@ amanu scans/ -r -o out/                      # fast mode: tiny CPU readers only
 amanu escucha interview.mp3 -f srt -o subs/  # speech to subtitles with word timings
 ```
 
+- **End to end** (detector, learned reading order, reader): CER 3.21 % vs Indra's 4.18 % on clean pages and
+  6.60 % vs 8.94 % on degraded ones; pages scanned sideways or upside down are turned upright.
 - **Tiny and accurate**: Amanuensis Mínimo (1.07 M parameters) matches Indra OCR's speed on a laptop CPU
   (34 pages/s with 14 processes) with a third of its character errors on modern print lines (0.28 % vs 0.84 %),
   half on degraded scans (4.46 % vs 9.06 %), and 28 % vs 76 % on medieval and early modern manuscripts.
