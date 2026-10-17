@@ -5,7 +5,7 @@
     print(doc.exportar("md"))
     res = amanuensis.escuchar("audio.mp3")          # dict con texto y palabras con tiempos
 """
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def leer(ruta: str, **opciones):

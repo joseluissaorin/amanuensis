@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amanuensis"
-version = "0.2.0"
+version = "0.3.0"
 description = "Reads any page in history and writes down what it is told: OCR and HTR for print and manuscripts of every period, page layout, and speech to text with word timings, locally, on top of EmbeddingGemma 2"
 readme = "README.md"
 license = "Apache-2.0"

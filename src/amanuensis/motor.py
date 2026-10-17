@@ -47,7 +47,8 @@ def proveedores(dispositivo: str):
 
 
 class Motor:
-    def __init__(self, modelo="auto", maqueta="auto", modo="auto", dpi=200, dispositivo="auto", hilos=0, verbose=True, rapido=False):
+    def __init__(self, modelo="auto", maqueta="auto", modo="auto", dpi=200, dispositivo="auto", hilos=0, verbose=True, rapido=False,
+                 imagenes="auto"):
         self.rapido = rapido
         if rapido and maqueta == "auto":
             maqueta = "no"
@@ -59,6 +60,10 @@ class Motor:
         self.repo = repo() if maqueta in ("auto", "si") else None
         if maqueta == "si" and self.repo is None:
             raise SystemExit("--maqueta si necesita el repositorio eg2-ocr (AMANUENSIS_REPO)")
+        # extracción de imágenes: necesita las zonas de la maquetación completa
+        self.imagenes = self.repo is not None and imagenes != "no"
+        if imagenes == "si" and self.repo is None:
+            self.log("aviso: la extracción de imágenes necesita la maquetación completa (AMANUENSIS_REPO); se omite")
 
     def log(self, *a):
         if self.verbose:
@@ -91,6 +96,8 @@ class Motor:
                 r = os.path.join(d, f"{i:04d}.png"); im.save(r); rutas.append(r)
             sal = os.path.join(d, "mq.json")
             orden = [str(self.repo / ".venv" / "bin" / "python"), str(self.repo / "producto" / "maqueta_lineas.py"), *rutas, "--salida", sal]
+            if self.imagenes:
+                orden.append("--figuras")
             gpu = self.repo / "herramientas" / "con_gpu.sh"
             if gpu.exists():
                 orden = [str(gpu), *orden]
@@ -128,8 +135,9 @@ class Motor:
             out.append(Linea([round(v, 1) for v in c[:4]], l.texto, round(l.conf, 4), [round(x0 + x, 1) for x in l.xs]))
         return out
 
-    def ocr_paginas(self, imgs: list[Image.Image]) -> list[Pagina]:
-        mq = self.lineas_maqueta(imgs) if self.repo is not None else None
+    def ocr_paginas(self, imgs: list[Image.Image], mq=None) -> list[Pagina]:
+        if mq is None and self.repo is not None:
+            mq = self.lineas_maqueta(imgs)
         out = []
         for k, img in enumerate(imgs):
             t0 = time.time()
@@ -141,9 +149,12 @@ class Motor:
                 fuente = "ocr (detector)"
             lineas = self.leer_lineas(img, cajas)
             if mq is not None:
+                zs = mq[k].get("zonas", [])
                 for l, m in zip(lineas, mq[k]["lineas"]):
                     if m.get("poligono"):
                         l.poligono = m["poligono"]; l.base = m.get("base"); l.tipo = m.get("tipo")
+                    if 0 <= m.get("zona", -1) < len(zs):
+                        l.zona_clase = zs[m["zona"]]["clase"]
             p = Pagina(img.size[0], img.size[1], lineas, fuente, self.modelo, round(time.time() - t0, 2))
             if mq is not None:
                 p.zonas = mq[k].get("zonas", [])
@@ -158,12 +169,22 @@ class Motor:
         self.log(f"{nombre}:")
         with open(ruta, "rb") as f:
             es_pdf = b"%PDF-" in f.read(1024)
+        stem = Path(ruta).stem
         if not es_pdf:
             img = Image.open(ruta)
-            frames = []
+            color = []
             for i in range(getattr(img, "n_frames", 1)):
-                img.seek(i); frames.append(I.gris(img.copy()))
-            return Documento(nombre, self.ocr_paginas(frames[: max_paginas or None]))
+                img.seek(i); color.append(img.copy().convert("RGB"))
+            color = color[: max_paginas or None]
+            frames = [c.convert("L") for c in color]
+            mq = self.lineas_maqueta(frames) if self.repo is not None else None
+            d = Documento(nombre, self.ocr_paginas(frames, mq))
+            if self.imagenes and mq:
+                from . import figuras
+
+                d.imagenes = figuras.procesar(d.paginas, [m.get("figuras") for m in mq], [(lambda c=c: (c, 1.0)) for c in color], stem)
+                self._log_figuras(d)
+            return d
         doc = pdf.abrir(ruta)
         paginas: list = [None] * len(doc)
         if max_paginas:
@@ -181,8 +202,32 @@ class Motor:
                     continue
                 self.log(f"  página {i + 1}: {nota}; OCR")
             pendientes.append((i, pdf.imagen(pag, self.dpi)))
+        mq_todas = None
+        if self.imagenes:  # la maquetación mira TODAS las páginas (también las de capa de texto) por sus figuras
+            mq_todas = self.lineas_maqueta([pdf.imagen(doc[i], self.dpi, color=True) for i in range(len(paginas))])
         if pendientes:
-            for (i, _), p in zip(pendientes, self.ocr_paginas([im for _, im in pendientes])):
+            mq = [mq_todas[i] for i, _ in pendientes] if mq_todas else None
+            for (i, _), p in zip(pendientes, self.ocr_paginas([im for _, im in pendientes], mq)):
                 paginas[i] = p
+        d = Documento(nombre, paginas)
+        if mq_todas:
+            from . import figuras
+
+            DPI_FIG = 300
+
+            def original(i):
+                return lambda: (doc[i].render(scale=DPI_FIG / 72.0).to_pil().convert("RGB"), DPI_FIG / self.dpi)
+
+            d.imagenes = figuras.procesar(paginas, [m.get("figuras") for m in mq_todas], [original(i) for i in range(len(paginas))], stem)
+            self._log_figuras(d)
         doc.close()
-        return Documento(nombre, paginas)
+        return d
+
+    def _log_figuras(self, d):
+        n = sum(len(getattr(p, "figuras", [])) for p in d.paginas)
+        if n:
+            tipos = {}
+            for p in d.paginas:
+                for f in p.figuras:
+                    tipos[f["tipo"]] = tipos.get(f["tipo"], 0) + 1
+            self.log(f"  imágenes: {n} (" + ", ".join(f"{v} {k}" for k, v in tipos.items()) + f"); {len(d.imagenes)} ficheros")

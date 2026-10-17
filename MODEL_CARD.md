@@ -70,6 +70,9 @@ error de caracteres en %.
 | Sintéticas (moderno e histórico) | textos de Wikipedia y Gutenberg con tipos libres | CC BY-SA / dominio público; tipos OFL |
 | Pseudoetiquetas de manuscritos | imágenes de Internet Archive etiquetadas por acuerdo entre un modelo de Gemini y un modelo de lengua | condiciones de cada facsímil |
 
+Descriptores de imagen: Iconclass (CC0), 7071 notaciones de hasta cinco caracteres, recuperadas por similitud en el
+espacio común imagen-texto de EmbeddingGemma 2; se ofrecen como sugerencias, nunca se genera texto.
+
 Los conjuntos reservados para el banco de examen (entre otros, GT4HistOCR, Bullinger, Gwalther, Rodrigo, BNE
 INC/901) no se usaron en ningún entrenamiento.
 

@@ -101,6 +101,7 @@ def main(argv=None):
     ap.add_argument("--maqueta", default="auto", choices=["auto", "si", "no"], help="maquetación completa del proyecto (zonas, líneas con base, orden)")
     ap.add_argument("--modo", default="auto", choices=["auto", "ocr", "texto"], help="PDF: capa de texto si es fiable (auto), siempre OCR, o siempre la capa")
     ap.add_argument("--dpi", type=int, default=200)
+    ap.add_argument("--imagenes", default="auto", choices=["auto", "si", "no"], help="extraer figuras, grabados, capitulares y sellos (con la maquetación completa)")
     ap.add_argument("--paginas", type=int, default=0, help="como mucho N páginas por fichero")
     ap.add_argument("--dispositivo", default="auto", choices=["auto", "cpu", "gpu"])
     ap.add_argument("--hilos", type=int, default=0)
@@ -114,7 +115,7 @@ def main(argv=None):
             ap.error(f"formato desconocido: {f}")
     from .motor import Motor
 
-    m = Motor(a.modelo, a.maqueta, a.modo, a.dpi, a.dispositivo, a.hilos, not a.silencio, a.rapido)
+    m = Motor(a.modelo, a.maqueta, a.modo, a.dpi, a.dispositivo, a.hilos, not a.silencio, a.rapido, a.imagenes)
     lista = list(entradas(a.entradas, EXT_DOC))
     fallos = 0
     for p in lista:
@@ -123,7 +124,18 @@ def main(argv=None):
             d = m.leer(str(p), a.paginas)
             m.log(f"  {len(d.paginas)} páginas en {time.time() - t0:.1f} s")
             for f in fs:
+                if f == "page" and a.salida and len(d.paginas) > 1:  # PAGE XML: un fichero por página
+                    from .salidas import page
+
+                    for i in range(len(d.paginas)):
+                        escribir(page(d, i), a.salida, p, f"_p{i + 1:03d}.page.xml", True)
+                    continue
                 escribir(d.exportar(f), a.salida, p, EXTENSION[f], len(lista) > 1 or len(fs) > 1)
+            if d.imagenes:
+                if a.salida:
+                    m.log(f"  -> {d.guardar_imagenes(a.salida)} imágenes en {Path(a.salida) / 'img' / p.stem}")
+                else:
+                    m.log("  aviso: hay imágenes extraídas; usa -o CARPETA para guardarlas")
         except KeyboardInterrupt:
             raise
         except Exception as e:  # sigue con los demás ficheros

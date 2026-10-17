@@ -13,8 +13,9 @@ def abrir(ruta: str, contrasena: str | None = None):
     return pdfium.PdfDocument(ruta, password=contrasena)
 
 
-def imagen(pag, dpi: float) -> Image.Image:
-    return pag.render(scale=dpi / 72.0, grayscale=True).to_pil().convert("L")
+def imagen(pag, dpi: float, color: bool = False) -> Image.Image:
+    im = pag.render(scale=dpi / 72.0, grayscale=not color).to_pil()
+    return im.convert("RGB" if color else "L")
 
 
 def lineas_texto(pag, dpi: float):
@@ -25,7 +26,7 @@ def lineas_texto(pag, dpi: float):
     _, alto_pt = pag.get_size()
     s = dpi / 72.0
     n = tp.count_chars()
-    texto = tp.get_text_range(0, n) if n else ""
+    texto = (tp.get_text_range(0, n) if n else "").replace("\ufffe", "-")  # pdfium marca así el guion de corte
     lineas, act, caja = [], [], None
 
     def cerrar():

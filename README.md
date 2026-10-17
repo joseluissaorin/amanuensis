@@ -31,12 +31,18 @@ EmbeddingGemma 2 + adaptador LoRA) el error en manuscritos baja al 20 %.
 
 ## Qué hace
 
-- **Documentos**: PDF, imágenes (también TIFF de varias páginas) o carpetas enteras a **Markdown, texto, JSON,
+- **Documentos**: PDF, imágenes (también TIFF de varias páginas) o carpetas enteras a **Markdown, HTML, texto, JSON,
   TEI, PAGE XML, ALTO o hOCR**.
 - **PDF digitales**: si el PDF trae una capa de texto fiable, la usa tal cual (instantáneo y exacto); solo hace OCR
   de las páginas sin capa o con la capa rota.
 - **Manuscritos**: transcripción grafemática con los signos MUFI (ſ, ꝑ, ꝯ, ⁊…), como CATMuS.
 - **Todas las escrituras** en impreso moderno con el lector multilingüe (`-m multilingue`).
+- **Imágenes** (con la maquetación completa, `--imagenes`): figuras, grabados, capitulares, sellos y fórmulas
+  recortados a la resolución original (`img/<documento>/p001_fig01.webp`), sin duplicar ornamentos repetidos,
+  enlazados con su pie, con las llamadas «fig. N» del texto y la capitular con su palabra, y colocados en todas
+  las salidas: Markdown `![pie](…)`, HTML `<figure>`, TEI `<figure><graphic/><head/><figDesc/>`, PAGE
+  `ImageRegion`/`GraphicRegion`, ALTO `<Illustration>` y JSON. El texto alternativo es el pie o un descriptor
+  Iconclass recuperado por similitud (no generado).
 - **Voz**: audio o vídeo a **texto, SRT, VTT o JSON** con el inicio y el fin de cada palabra (español, catalán,
   gallego, euskera y portugués; más lenguas en la próxima versión).
 - **Local**: nada sale de tu máquina. Los pesos (de 4 MB a 350 MB) se descargan solos la primera vez.
