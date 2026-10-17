@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amanuensis"
+version = "0.2.0"
+description = "Reads any page in history and writes down what it is told: OCR and HTR for print and manuscripts of every period, page layout, and speech to text with word timings, locally, on top of EmbeddingGemma 2"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "José Luis Saorín Ferrer", email = "jl@joseluissaorin.com" }]
+requires-python = ">=3.10"
+keywords = ["ocr", "htr", "handwritten text recognition", "manuscripts", "digital humanities", "tei", "page-xml", "alto", "speech-to-text", "embeddinggemma"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Image Recognition",
+  "Topic :: Text Processing :: Linguistic",
+  "Natural Language :: Spanish",
+  "Natural Language :: English",
+]
+dependencies = [
+  "numpy",
+  "pillow",
+  "onnxruntime>=1.18",
+  "pypdfium2>=4",
+  "opencv-python-headless",
+]
+
+[project.optional-dependencies]
+gpu = ["onnxruntime-gpu>=1.18"]
+
+[project.urls]
+Homepage = "https://github.com/joseluissaorin/amanuensis"
+Demo = "https://lector-eg2.pages.dev"
+Models = "https://github.com/joseluissaorin/amanuensis/blob/main/MODEL_CARD.md"
+
+[project.scripts]
+amanuensis = "amanuensis.cli:main"
+amanu = "amanuensis.cli:main"
+eg2ocr = "amanuensis.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+amanuensis = ["catalogo.json"]

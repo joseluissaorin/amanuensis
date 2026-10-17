@@ -1,0 +1,87 @@
+{
+ "version": 2,
+ "base": "https://pub-0cd610c698a64e1a9feb1660374d62c7.r2.dev/v1",
+ "modelos": {
+  "ligero": {
+   "descripcion": "Amanuensis Ligero (3,5 M, CPU): lector por defecto; impreso moderno e histórico en alfabeto latino",
+   "carpeta": "amanuensis-ligero-1",
+   "ficheros": {
+    "config.json": 5464,
+    "mini.onnx": 13963171
+   },
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+  },
+  "minimo": {
+   "descripcion": "Amanuensis Mínimo (1,07 M, CPU): el más rápido; impreso moderno e histórico en alfabeto latino",
+   "carpeta": "amanuensis-minimo-1",
+   "ficheros": {
+    "config.json": 5461,
+    "mini.onnx": 4302381
+   },
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+  },
+  "detector-minimo": {
+   "descripcion": "Detector de líneas Mínimo (0,13 M, CPU); en manuscritos, mejor la maquetación completa",
+   "carpeta": "amanuensis-det-minimo-1",
+   "ficheros": {
+    "config.json": 199,
+    "det.onnx": 512342
+   },
+   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD"
+  },
+  "historico": {
+   "descripcion": "Amanuensis histórico (v2b96, EmbeddingGemma 2 + LoRA, 8 bits): manuscritos e impresos de los siglos XII-XX",
+   "carpeta": "v2b96",
+   "ficheros": {
+    "config.json": 4273,
+    "codificador_q8_b32.onnx": 152134541,
+    "cabeza_literal_q8_b32.onnx": 33642172
+   },
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+  },
+  "multilingue": {
+   "descripcion": "Amanuensis multilingüe (ml_v1, 8 bits): impreso moderno en todas las escrituras (≈14 800 caracteres)",
+   "carpeta": "ml_v1",
+   "ficheros": {
+    "config.json": 103209,
+    "codificador_q8_b32.onnx": 152134541,
+    "cabeza_literal_q8_b32.onnx": 41011547
+   },
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+  },
+  "impreso": {
+   "descripcion": "Lector r2 (8 bits): impreso moderno latino, primera generación",
+   "carpeta": "r2d2",
+   "ficheros": {
+    "config.json": 1780,
+    "codificador_q8_b32.onnx": 151545557,
+    "cabeza_q8_b32.onnx": 31665034
+   },
+   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD"
+  },
+  "detector": {
+   "descripcion": "Detector de líneas det2 sobre el codificador de r2 (8 bits)",
+   "carpeta": "r2d2",
+   "ficheros": {
+    "config.json": 1780,
+    "codificador_q8_b32.onnx": 151545557,
+    "detector_fp16.onnx": 1946397
+   },
+   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD"
+  },
+  "voz": {
+   "descripcion": "Voz a texto (stt-h, 8 bits): español, catalán, gallego, euskera y portugués, con tiempos por palabra",
+   "carpeta": "amanuensis-voz-h-1",
+   "ficheros": {
+    "stt.json": 369,
+    "stt_completo_int8.onnx": {
+     "bytes": 350812741,
+     "partes": 2
+    },
+    "tokens_plano.json": 48251,
+    "tokens_rico.json": 73968
+   },
+   "licencia": "Apache-2.0 (pesos); datos MLS CC BY 4.0, Common Voice CC0, VoxPopuli CC0, FLEURS CC BY 4.0"
+  }
+ }
+}
