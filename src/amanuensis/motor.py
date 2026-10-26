@@ -44,6 +44,9 @@ SONDA_CONF = 0.90  # confianza media de las líneas
 SONDA_P10 = 0.95  # percentil 10 de la confianza de las líneas (las flojas delatan manuscrito, gótica o maquetación rara)
 SONDA_FLOJAS = 0.08  # fracción máxima de líneas con confianza < UMBRAL_ML
 SONDA_MIN_LINEAS = 3
+# regla por página de la maquetación de Ligero y del modo rápido (AMANUENSIS_MAQUETA_MINIMA=pagina)
+REGLA_FLOJAS = 0.10  # fracción máxima de renglones flojos de la lectura clásica para quedarse con ella
+REGLA_MIN_LINEAS = 3
 
 
 def repo() -> Path | None:
@@ -274,11 +277,13 @@ class Motor:
 
     def maqueta_minima(self, para: str = "ligero"):
         """Maquetación mínima (renglones curvos, zonas, orden jerárquico y orientación propia; agente «maqueta-minima»):
-        en lugar de det-mini + orientar + orden ligero. AMANUENSIS_MAQUETA_MINIMA: «auto» (por defecto, decisión de José
-        Luis del 19-10-2026) = en Amanuensis Ligero y su modo rápido, pero NO en la sonda del modo automático (el impreso
-        moderno limpio sigue yendo por det-mini); «1» = también en la sonda; «0» = nunca."""
-        modo = os.environ.get("AMANUENSIS_MAQUETA_MINIMA", "auto")
-        if modo == "0" or (modo == "auto" and para == "sonda") or not modelos.disponible("maqueta-minima"):
+        en lugar de det-mini + orientar + orden ligero. AMANUENSIS_MAQUETA_MINIMA: «pagina» (por defecto desde
+        la medida del 26-10-2026, resultados/maqueta_defecto) = página a página en Ligero y su modo rápido: la clásica si
+        su lectura sale firme (impreso moderno), la mínima si no (manuscrito, impreso antiguo, prensa, fotos); «auto» (el
+        defecto del 19-10-2026) = la mínima siempre en Ligero y su modo rápido, pero NO en la sonda del modo automático;
+        «1» = también en la sonda; «0» = nunca."""
+        modo = os.environ.get("AMANUENSIS_MAQUETA_MINIMA", "pagina")
+        if modo == "0" or (modo in ("auto", "pagina") and para == "sonda") or not modelos.disponible("maqueta-minima"):
             return None
         if getattr(self, "_mm", None) is None:
             from .maqueta_minima import MaquetaMinima
@@ -453,7 +458,9 @@ class Motor:
             r = mm.analizar(img, orientar=False)
             r["giro"] = giro_g
         else:
-            r = mm.analizar(img, puntuar=puntuar if self.enderezar else None)
+            # sin enderezar (modo rápido, --enderezar no) la maqueta mínima tampoco gira la página con su clasificador
+            # de orientación (giraba 90/180° páginas derechas: 18 de 324 en DEV, 26-10-2026)
+            r = mm.analizar(img, orientar=self.enderezar, puntuar=puntuar if self.enderezar else None)
         im = r["imagen"]
         g = np.asarray(im)
         rec = [mm.recorte(g, l) for l in r["lineas"]]
@@ -716,34 +723,27 @@ class Motor:
             if mq is not None:
                 cajas = [l["caja"] for l in mq[k]["lineas"]]
                 fuente = f"ocr ({'maqueta ' + mq[k].get('tipo', '')})"
-            elif self.maqueta_minima("ligero") is not None:
-                cadena0 = "ligero" if self.modelo == "auto" else self.modelo
-                img, lineas, giro, zonas_mm = self.lineas_minima(img, cadena=None)
-                fuente = "ocr (maqueta mínima" + (f", giro {giro}°" if giro else "") + ")"
-                p = Pagina(img.size[0], img.size[1], lineas, fuente, self.modelo, round(time.time() - t0, 2))
-                p.zonas = zonas_mm
-                p.imagen_derecha = img
+            elif self.maqueta_por_pagina():
+                # regla por página (AMANUENSIS_MAQUETA_MINIMA=pagina): primero la clásica; si su lectura sale floja
+                # (manuscrito, impreso antiguo, prensa degradada) o no encuentra renglones, la mínima
+                p = self._pagina_clasica(img, t0)
+                if not self.es_moderno(p.lineas):
+                    p = self._pagina_minima(img, t0)
+                    p.fuente = p.fuente[:-1] + ", por regla de página)"
                 out.append(p)
-                self.log(f"  página {k + 1}: {len(lineas)} líneas, {p.segundos} s ({fuente})")
+                self.log(f"  página {k + 1}: {len(p.lineas)} líneas, {p.segundos} s ({p.fuente})")
+                continue
+            elif self.maqueta_minima("ligero") is not None:
+                p = self._pagina_minima(img, t0)
+                out.append(p)
+                self.log(f"  página {k + 1}: {len(p.lineas)} líneas, {p.segundos} s ({p.fuente})")
                 continue
             else:
-                giro = incl = 0
-                cadena0 = "ligero" if self.modelo == "auto" else self.modelo
-                geom = self.enderezar and self.orientacion_geom()
-                if geom:
-                    img, giro = self.orientar_pagina(img, lector=cadena0 if cadena0 in ("ligero", "minimo") else None)
-                elif self.enderezar:
-                    from . import orientacion as O
-
-                    img, incl = O.enderezar(img)
-                cajas = self.detector().detectar(img)
-                if self.enderezar and not geom and cadena0 in ("ligero", "minimo"):
-                    img, giro, cajas = O.orientar(img, cajas, self.detector().detectar, self.lector(cadena0).leer)
-                cajas = self._columnas(img, cajas)
-                fuente = "ocr (detector" + (f", giro {giro}°" if giro else "") + (f", inclinación {incl}°" if incl else "") + ")"
+                p = self._pagina_clasica(img, t0)
+                out.append(p)
+                self.log(f"  página {k + 1}: {len(p.lineas)} líneas, {p.segundos} s ({p.fuente})")
+                continue
             lineas = self._poner_clases(self.leer_lineas(img, cajas))
-            if mq is None:  # (det-mini ya da el orden ligero; la continuidad con ligero/XY aquí empeoraba: no se aplica)
-                lineas = self.lineas_giradas(img, lineas, lector=cadena0 if cadena0 in ("ligero", "minimo") else None)
             if mq is not None:
                 zs = mq[k].get("zonas", [])
                 for l, m in zip(lineas, mq[k]["lineas"]):
@@ -757,6 +757,50 @@ class Motor:
             out.append(p)
             self.log(f"  página {k + 1}: {len(lineas)} líneas, {p.segundos} s ({fuente})")
         return out
+
+    def maqueta_por_pagina(self) -> bool:
+        """AMANUENSIS_MAQUETA_MINIMA=pagina: la maquetación se elige página a página (clásica en el impreso moderno limpio,
+        mínima en lo demás). Medido en DEV y en los bancos el 26-10-2026 (agente «maqueta-defecto», COORDINACION.md)."""
+        return os.environ.get("AMANUENSIS_MAQUETA_MINIMA", "pagina") == "pagina" and modelos.disponible("maqueta-minima")
+
+    @staticmethod
+    def es_moderno(lineas) -> bool:
+        """¿Página para la maquetación clásica? Sí si el detector Mínimo encuentra al menos REGLA_MIN_LINEAS renglones con
+        texto y, como mucho, el REGLA_FLOJAS de ellos se leen con confianza < UMBRAL_ML (lo flojo delata manuscrito,
+        impreso antiguo o prensa degradada, donde gana la mínima). Umbral elegido en DEV con validación cruzada y
+        comprobado en los bancos de orden (26-10-2026; resultados/maqueta_defecto)."""
+        c = [l.conf for l in lineas if l.texto.strip()]
+        return len(c) >= REGLA_MIN_LINEAS and sum(x < UMBRAL_ML for x in c) / len(c) <= REGLA_FLOJAS
+
+    def _pagina_minima(self, img, t0) -> Pagina:
+        """Maquetación mínima: renglones curvos, zonas, orden jerárquico + continuidad, orientación propia."""
+        img, lineas, giro, zonas_mm = self.lineas_minima(img, cadena=None)
+        fuente = "ocr (maqueta mínima" + (f", giro {giro}°" if giro else "") + ")"
+        p = Pagina(img.size[0], img.size[1], lineas, fuente, self.modelo, round(time.time() - t0, 2))
+        p.zonas = zonas_mm
+        p.imagen_derecha = img
+        return p
+
+    def _pagina_clasica(self, img, t0) -> Pagina:
+        """Maquetación clásica: orientación, detector Mínimo, columnas (orden por grafo en prensa) y lectura."""
+        giro = incl = 0
+        cadena0 = "ligero" if self.modelo == "auto" else self.modelo
+        geom = self.enderezar and self.orientacion_geom()
+        from . import orientacion as O
+
+        if geom:
+            img, giro = self.orientar_pagina(img, lector=cadena0 if cadena0 in ("ligero", "minimo") else None)
+        elif self.enderezar:
+            img, incl = O.enderezar(img)
+        cajas = self.detector().detectar(img)
+        if self.enderezar and not geom and cadena0 in ("ligero", "minimo"):
+            img, giro, cajas = O.orientar(img, cajas, self.detector().detectar, self.lector(cadena0).leer)
+        cajas = self._columnas(img, cajas)
+        fuente = "ocr (detector" + (f", giro {giro}°" if giro else "") + (f", inclinación {incl}°" if incl else "") + ")"
+        lineas = self._poner_clases(self.leer_lineas(img, cajas))
+        # (det-mini ya da el orden ligero; la continuidad con ligero/XY aquí empeoraba: no se aplica)
+        lineas = self.lineas_giradas(img, lineas, lector=cadena0 if cadena0 in ("ligero", "minimo") else None)
+        return Pagina(img.size[0], img.size[1], lineas, fuente, self.modelo, round(time.time() - t0, 2))
 
     def _ocr_dobles(self, imgs: list[Image.Image]) -> list[Pagina]:
         """Las dobles páginas (libro abierto en un escaneo apaisado) se leen hoja a hoja y se vuelven a juntar en una

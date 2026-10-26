@@ -18,7 +18,7 @@ doc.fiel) da la página tal cual, con el mobiliario en comentarios. TEI, PAGE, A
 Para una app: un Motor se crea una vez y se reutiliza (amanuensis.motor.Motor(...).leer(ruta)); los léxicos de una
 lengua se construyen la primera vez que hacen falta (amanuensis.lexico.preparar(["es", "pt"]) los deja listos antes).
 """
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 def leer(ruta: str, **opciones):

@@ -1,5 +1,27 @@
 # Cambios
 
+## 1.1.1 (26-10-2026)
+
+La maquetación de Amanuensis Ligero y de su modo rápido se elige **página a página**.
+
+- **Regla por página** (`AMANUENSIS_MAQUETA_MINIMA=pagina`, nuevo defecto): la página se lee primero con la maquetación
+  clásica (detector Mínimo, orientación, columnas, orden por grafo en prensa y revistas). Si más del 10 % de sus renglones
+  con texto salen con confianza < 0,75, o hay menos de 3, se vuelve a leer con la maquetación mínima (renglones curvos,
+  zonas, orden por continuidad). La 1.1.0 usaba siempre la mínima, que gana en manuscritos, impreso antiguo, prensa y
+  fotos, pero pierde en impreso moderno: repite renglones, deja folios y cabeceras y parte párrafos por zonas, y con ella
+  no actuaban las columnas ni la palabra partida de la 1.1. `AMANUENSIS_MAQUETA_MINIMA=auto` vuelve a lo de la 1.1.0 y `0`
+  usa siempre la clásica.
+- Medido en páginas de desarrollo (324, sin el examen sellado; FCA / CER medios por página, %): Ligero 33,8 / 39,2
+  (1.1.0) → 34,5 / **38,0**; modo rápido 36,8 / 41,2 → **36,2 / 39,2**. Por tipo de página, con Ligero: impreso moderno a
+  varias columnas 10,4 → 6,5 de FCA, prensa 31,5 → 26,4 de CER, y los manuscritos siguen igual (43,0 → 43,5 de FCA). En
+  los bancos de orden (WER del texto de lectura) la regla da lo de la clásica: Grotowski 19,80 → 6,15, Implicaturas
+  3,07 → 0,78, Pragmática 3,24 → 0,23, La comunicación 6,09 → 1,89, Anchieta 10,64 → 4,38, Grice 2,92 → 0,49. En 34 páginas
+  inclinadas, 18,71 → 4,07; sin folios sueltos.
+- **Modo rápido**: la maquetación mínima ya no gira la página con su clasificador de orientación cuando no se endereza.
+  Giraba 90° o 180° páginas que estaban derechas: 18 de 324 en desarrollo.
+- Coste: en Ligero, las páginas que no son de impreso moderno se leen dos veces (de 1,1 a 1,5 s por página de media en
+  CPU). En el modo rápido apenas cambia.
+
 ## 1.1.0 (26-10-2026)
 
 Lo que va de leer a entregar un texto que se pueda leer, sin tocar los modelos.
