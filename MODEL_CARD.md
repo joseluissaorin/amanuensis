@@ -173,7 +173,7 @@ versión 0.4. La maquetación mínima está integrada pero apagada (`AMANUENSIS_
 | **Spanish Gothic Incunabula (HSMS)** | incunables castellanos 1472-1500 | **CC BY-NC 4.0** |
 | HTR-United y otros: Caroline, chapbooks, FoNDUE, Liber, NUBIS, Paris Bible, Dresdner Hofdiarium, Finnish court records, Inzigkofen, NewsEye, Nuremberg letterbooks, ONB 3891, Paderov Bible, TranscriboQuest, graphemic ENHG | manuscritos e impresos s. IX-XX | CC BY 4.0 o CC BY-SA 4.0 |
 | Reichenau (deu, lat) | manuscritos | CC BY-SA 4.0 |
-| **OHG (Old High German)** | manuscritos | **CC BY-NC 4.0** |
+| **Oficio de Hipotecas de Girona (OHG)** ([Zenodo 1322666](https://zenodo.org/records/1322666)) | escrituras notariales en español, s. XVIII | **CC BY-NC 4.0** |
 | Wikisource (ca, de, en, es, fr, gl, it, la, pt) | facsímiles de dominio público con su transcripción | CC BY-SA 4.0 (texto) |
 | Líneas de PDF nacidos digitales | impreso moderno | corpus privado; no se redistribuye |
 | Sintéticas (moderno e histórico) | textos de Wikipedia y Gutenberg con tipos libres | CC BY-SA / dominio público; tipos OFL |
@@ -193,7 +193,7 @@ Ligero** (3.5 M parameters, CPU; `--rapido` uses the 1.07 M Mínimo reader insid
 speech-to-text module, 40 languages; clearly behind Whisper and Parakeet in the big languages, ahead in Galician,
 Basque and Catalan Common Voice). `-m auto` sends each page to Amanuensis or Ligero. Code: Apache 2.0. Amanuensis and
 Ligero weights are released for **non-commercial use** because part of their training data (HSMS Spanish Gothic
-Incunabula and OHG) is CC BY-NC 4.0. Voz weights are Apache 2.0; its language models are CC BY-SA 4.0. The previously
+Incunabula and OHG, the Oficio de Hipotecas de Girona collection of 18th-century Spanish notarial deeds) is CC BY-NC 4.0. Voz weights are Apache 2.0; its language models are CC BY-SA 4.0. The previously
 published `voz-h` (stt-h) ONNX has an attention-mask export bug (one extra frame of left context; 3.4 % WER between
 ONNX and PyTorch); voz2 replaces it. All vision models build on Google's EmbeddingGemma 2; none uses weights or outputs
 of Indra OCR or other third-party OCR systems. The sparse-graph reading-order weights (`orden_gcn.npz`, `orden_gcn_giro.npz`), like the Mínimo detector and

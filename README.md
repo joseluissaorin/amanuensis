@@ -31,8 +31,9 @@ Por defecto (`-m auto`) cada página va a Amanuensis o a Ligero según lo que se
 
 ## Por qué
 
-Examen sellado: 22 470 líneas de colecciones que no tocó ningún entrenamiento, en ocho grupos (impreso moderno y
-antiguo, manuscritos medievales y modernos, letra a mano de los ss. XX-XXI, prensa, formularios, escaneos degradados).
+Examen sellado: 15 537 líneas de colecciones que no tocó ningún entrenamiento, en ocho grupos (impreso moderno y
+antiguo, manuscritos medievales y modernos, letra a mano de los ss. XX-XXI, prensa, formularios, escaneos degradados),
+más el bloque de CMMHWR (6933 líneas de manuscrito medieval): 22 470 líneas en total.
 CER en %, caracteres mal leídos; los demás sistemas, con su mejor configuración pública en las mismas imágenes.
 
 | | media de los 8 grupos | letra a mano moderna | escaneos degradados | manuscritos (CMMHWR) |
@@ -41,7 +42,7 @@ CER en %, caracteres mal leídos; los demás sistemas, con su mejor configuraci�
 | **Amanuensis Ligero** | 21,5 | 26,0 | **10,2** | 14,8 |
 | Amanuensis Ligero, modo rápido | 24,2 | 30,3 | 12,2 | 17,6 |
 | PP-OCRv6 medium (afinado por Kiessling) | 20,1 | 18,0 | 19,6 | 15,7 |
-| Gemma 4 E2B | 29,0 | **9,60** | 23,4 | 45,2 |
+| Gemma 4 E2B | 29,1 | **9,60** | 23,4 | 45,2 |
 | dots.ocr | 29,7 | 16,3 | 25,5 | 42,8 |
 | Tesseract (modelo de cada lengua) | 43,4 | 53,0 | 30,7 | 64,8 |
 | Indra OCR | 55,7 | 42,2 | 59,9 | 73,9 |
@@ -205,7 +206,7 @@ md = doc.exportar("md")
 |---|---|---|---|
 | `amanuensis` | Amanuensis: página entera (ONNX de 8 bits; Core ML opcional en el Mac) | 500 MB (+ 670 MB Core ML) | no comercial* |
 | `ligero` | Amanuensis Ligero (3,5 M; con `-r`, el Mínimo de 1,07 M) | 14 MB + 4 MB | no comercial* |
-| `voz` | Amanuensis Voz: 40 lenguas, mayúsculas y puntuación, tiempos por palabra | 460 MB | Apache 2.0 |
+| `voz` | Amanuensis Voz: 40 lenguas, mayúsculas y puntuación, tiempos por palabra | 481 MB | Apache 2.0 |
 | (`voz-lm`) | modelos de lengua por idioma para la voz (37), bajo demanda | 12-460 MB cada uno | CC BY-SA 4.0 |
 
 `amanu modelos --todos` lista también las piezas internas (detector Mínimo, lectores histórico y multilingüe, que
@@ -261,9 +262,10 @@ amanu scans/ -m ligero -o out/               # Amanuensis Ligero: tiny CPU reade
 amanu escucha interview.mp3 -f srt -o subs/  # speech to subtitles with word timings
 ```
 
-- **Sealed exam** (22,470 lines never seen in training, 8 groups): Amanuensis 14.8 % mean CER, Ligero 21.5 %,
-  PP-OCRv6 medium 20.1 %, Gemma 4 E2B 29.0 %, dots.ocr 29.7 %, Tesseract 43.4 %, Indra OCR 55.7 %. We lose on
-  modern handwriting (Gemma 4: 9.6 vs 14.9) and on reading order in many-column newspapers.
+- **Sealed exam** (15,537 lines never seen in training in 8 groups, plus 6,933 lines of CMMHWR: 22,470 in all):
+  Amanuensis 14.8 % mean CER over the 8 groups, Ligero 21.5 %, PP-OCRv6 medium 20.1 %, Gemma 4 E2B 29.1 %,
+  dots.ocr 29.7 %, Tesseract 43.4 %, Indra OCR 55.7 %. We lose on modern handwriting (Gemma 4: 9.6 vs 14.9) and on
+  reading order in many-column newspapers.
 - **The family**: Amanuensis (the large whole-page model), Amanuensis Ligero (3.5 M parameters, CPU; `-r` uses the
   1.07 M Mínimo reader) and Amanuensis Voz (optional speech module). `-m auto` picks Amanuensis or Ligero per page.
 - **Whole pages** with Amanuensis (`-m amanuensis`): high-resolution baselines, layout zones, marginal notes,
