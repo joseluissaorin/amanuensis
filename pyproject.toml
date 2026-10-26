@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amanuensis"
-version = "0.4.0"
+version = "1.1.0"
 description = "Reads any page in history and writes down what it is told: OCR and HTR for print and manuscripts of every period, page layout, and speech to text with word timings, locally, on top of EmbeddingGemma 2"
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "José Luis Saorín Ferrer", email = "jl@joseluissaorin.com" }]
 requires-python = ">=3.10"
 keywords = ["ocr", "htr", "handwritten text recognition", "manuscripts", "digital humanities", "tei", "page-xml", "alto", "speech-to-text", "embeddinggemma"]
@@ -24,13 +24,15 @@ classifiers = [
 dependencies = [
   "numpy",
   "pillow",
-  "onnxruntime>=1.18",
+  "onnxruntime>=1.31",  # 8 bits por pesos (MatMulNBits) en CPU: con la 1.22 falla
   "pypdfium2>=4",
   "opencv-python-headless",
 ]
 
 [project.optional-dependencies]
-gpu = ["onnxruntime-gpu>=1.18"]
+gpu = ["onnxruntime-gpu>=1.19,<1.23", "nvidia-cublas-cu12", "nvidia-curand-cu12", "nvidia-cufft-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-runtime-cu12"]
+voz-lm = ["pyctcdecode>=0.5", "kenlm; python_version < '3.13'"]
+coreml = ["coremltools>=8; sys_platform == 'darwin'"]
 
 [project.urls]
 Homepage = "https://github.com/joseluissaorin/amanuensis"
@@ -46,4 +48,4 @@ eg2ocr = "amanuensis.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-amanuensis = ["catalogo.json", "orden_ligero.npz"]
+amanuensis = ["catalogo.json", "orden_ligero.npz", "orden_gcn.npz", "orden_gcn_giro.npz", "continuidad.npz", "perfiles.json"]

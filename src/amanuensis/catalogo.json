@@ -1,24 +1,106 @@
 {
- "version": 2,
+ "version": 3,
  "base": "https://pub-0cd610c698a64e1a9feb1660374d62c7.r2.dev/v1",
  "modelos": {
+  "amanuensis": {
+   "descripcion": "Amanuensis: la página entera (renglones de alta resolución, maquetación con zonas, tablas, notas al margen y orden aprendido, recorte enderezado por la línea base y lector grande con selector por escritura), ONNX de 8 bits; en el Mac, Core ML opcional",
+   "carpeta": "amanuensis-1",
+   "ficheros": {
+    "cod_base_q8.onnx": 153932057,
+    "cod_mq_q8.onnx": 153932057,
+    "completo.json": 1188,
+    "lineas_fp32.onnx": 13934474,
+    "maqueta_fp32.onnx": 10317158,
+    "orden_fp32.onnx": 4517278,
+    "orden_par.npz": 302026,
+    "lector/cabeza_literal_q8.onnx": 41840177,
+    "lector/codificador_q8.onnx": 153932755,
+    "lector/config.json": 102535,
+    "densa/cod_mq_q8.onnx": 153932057,
+    "densa/maqueta_fp32.onnx": 10317158,
+    "densa/orden_fp32.onnx": 4517278,
+    "densa/orden_par.npz": 302026
+   },
+   "requiere": [
+    "multilingue"
+   ],
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG); el lector grande y el adaptador de la maquetación parten del lector v3",
+   "opcional": {
+    "ficheros": {
+     "coreml/lector.zip": {
+      "bytes": 348672937,
+      "partes": 2
+     },
+     "coreml/maqueta.zip": {
+      "bytes": 325121819,
+      "partes": 2
+     }
+    },
+    "zip": {
+     "lector": "coreml/lector.zip",
+     "maqueta": "coreml/maqueta.zip"
+    },
+    "cuando": "coreml"
+   }
+  },
   "ligero": {
-   "descripcion": "Amanuensis Ligero (3,5 M, CPU): lector por defecto; impreso moderno e histórico en alfabeto latino",
+   "descripcion": "Amanuensis Ligero (3,5 M, CPU): impreso moderno y antiguo en alfabeto latino, también escaneos malos, mecanografiado y fotos; con --rapido usa por dentro el lector Mínimo (1,07 M)",
+   "carpeta": "amanuensis-ligero-3",
+   "ficheros": {
+    "config.json": 5611,
+    "mini.onnx": 13963171
+   },
+   "alternativa": "ligero-1",
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)",
+   "requiere": [
+    "maqueta-minima"
+   ]
+  },
+  "minimo": {
+   "descripcion": "Lector Mínimo (1,07 M): el modo rápido de Amanuensis Ligero (--rapido)",
+   "carpeta": "amanuensis-minimo-3",
+   "ficheros": {
+    "config.json": 5610,
+    "mini.onnx": 4302381
+   },
+   "alternativa": "minimo-1",
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)",
+   "oculto": true
+  },
+  "voz": {
+   "descripcion": "Amanuensis Voz (módulo opcional): voz2 sobre EmbeddingGemma 2, 40 lenguas, mayúsculas y puntuación, tiempos por palabra; con modelo de lengua por idioma",
+   "carpeta": "amanuensis-voz2-1",
+   "ficheros": {
+    "stt_completo_int8.onnx": {
+     "bytes": 481462428,
+     "partes": 2
+    },
+    "stt.json": 649,
+    "tokens_plano.json": 201008,
+    "tokens_rico.json": 195015
+   },
+   "licencia": "Apache-2.0 (pesos); datos abiertos: YODAS-Granary (CC BY 3.0), Common Voice 17 (CC0), MLS (CC BY 4.0), VoxPopuli (CC0), FLEURS (CC BY 4.0), YODAS2 manual (CC BY 3.0), HiTZ euskera; ver MODEL_CARD",
+   "alternativa": "voz-h"
+  },
+  "ligero-1": {
+   "descripcion": "Amanuensis Ligero 1 (3,5 M, CPU): lector por defecto; impreso moderno e histórico en alfabeto latino",
    "carpeta": "amanuensis-ligero-1",
    "ficheros": {
     "config.json": 5464,
     "mini.onnx": 13963171
    },
-   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)",
+   "oculto": true
   },
-  "minimo": {
-   "descripcion": "Amanuensis Mínimo (1,07 M, CPU): el más rápido; impreso moderno e histórico en alfabeto latino",
+  "minimo-1": {
+   "descripcion": "Amanuensis Mínimo 1 (1,07 M, CPU): el más rápido; impreso moderno e histórico en alfabeto latino",
    "carpeta": "amanuensis-minimo-1",
    "ficheros": {
     "config.json": 5461,
     "mini.onnx": 4302381
    },
-   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)",
+   "oculto": true
   },
   "detector-minimo": {
    "descripcion": "Detector de líneas Mínimo (0,13 M, CPU); en manuscritos, mejor la maquetación completa",
@@ -27,7 +109,8 @@
     "config.json": 199,
     "det.onnx": 512342
    },
-   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD"
+   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD",
+   "oculto": true
   },
   "historico": {
    "descripcion": "Amanuensis histórico (v2b96, EmbeddingGemma 2 + LoRA, 8 bits): manuscritos e impresos de los siglos XII-XX",
@@ -37,7 +120,8 @@
     "codificador_q8_b32.onnx": 152134541,
     "cabeza_literal_q8_b32.onnx": 33642172
    },
-   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)",
+   "oculto": true
   },
   "multilingue": {
    "descripcion": "Amanuensis multilingüe (ml_v1, 8 bits): impreso moderno en todas las escrituras (≈14 800 caracteres)",
@@ -47,7 +131,8 @@
     "codificador_q8_b32.onnx": 152134541,
     "cabeza_literal_q8_b32.onnx": 41011547
    },
-   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)"
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG)",
+   "oculto": true
   },
   "impreso": {
    "descripcion": "Lector r2 (8 bits): impreso moderno latino, primera generación",
@@ -57,7 +142,8 @@
     "codificador_q8_b32.onnx": 151545557,
     "cabeza_q8_b32.onnx": 31665034
    },
-   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD"
+   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD",
+   "oculto": true
   },
   "detector": {
    "descripcion": "Detector de líneas det2 sobre el codificador de r2 (8 bits)",
@@ -67,10 +153,179 @@
     "codificador_q8_b32.onnx": 151545557,
     "detector_fp16.onnx": 1946397
    },
-   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD"
+   "licencia": "Apache-2.0 (pesos); ver MODEL_CARD",
+   "oculto": true
   },
-  "voz": {
-   "descripcion": "Voz a texto (stt-h, 8 bits): español, catalán, gallego, euskera y portugués, con tiempos por palabra",
+  "voz-lm": {
+   "descripcion": "Modelos de lengua KenLM de 4-gramas por lengua para la voz (37 lenguas; se bajan bajo demanda)",
+   "carpeta": "amanuensis-voz2-lm-1",
+   "ficheros": {
+    "ajuste.json": 3633
+   },
+   "lenguas": {
+    "ar": {
+     "ar.bin": 176530928,
+     "ar.unigramas.json": 6352830
+    },
+    "be": {
+     "be.bin": 101836494,
+     "be.unigramas.json": 7971853
+    },
+    "bg": {
+     "bg.bin": 113623393,
+     "bg.unigramas.json": 7518016
+    },
+    "ca": {
+     "ca.bin": 200430456,
+     "ca.unigramas.json": 4823927
+    },
+    "cs": {
+     "cs.bin": 207803833,
+     "cs.unigramas.json": 5147566
+    },
+    "cy": {
+     "cy.bin": 42472081,
+     "cy.unigramas.json": 3392949
+    },
+    "da": {
+     "da.bin": 138094586,
+     "da.unigramas.json": 5410948
+    },
+    "de": {
+     "de.bin": {
+      "bytes": 459524100,
+      "partes": 2
+     },
+     "de.unigramas.json": 5696100
+    },
+    "el": {
+     "el.bin": 138607795,
+     "el.unigramas.json": 7651940
+    },
+    "en": {
+     "en.bin": 279023117,
+     "en.unigramas.json": 4596619
+    },
+    "es": {
+     "es.bin": {
+      "bytes": 320608739,
+      "partes": 2
+     },
+     "es.unigramas.json": 4824487
+    },
+    "et": {
+     "et.bin": 135621333,
+     "et.unigramas.json": 5498599
+    },
+    "eu": {
+     "eu.bin": 108686064,
+     "eu.unigramas.json": 5114511
+    },
+    "fa": {
+     "fa.bin": 129608190,
+     "fa.unigramas.json": 6030433
+    },
+    "fi": {
+     "fi.bin": 231889225,
+     "fi.unigramas.json": 5744971
+    },
+    "fr": {
+     "fr.bin": {
+      "bytes": 359931853,
+      "partes": 2
+     },
+     "fr.unigramas.json": 4824152
+    },
+    "gl": {
+     "gl.bin": 113921629,
+     "gl.unigramas.json": 4907783
+    },
+    "hr": {
+     "hr.bin": 118064181,
+     "hr.unigramas.json": 4967497
+    },
+    "hu": {
+     "hu.bin": 240360682,
+     "hu.unigramas.json": 5645376
+    },
+    "id": {
+     "id.bin": 155354914,
+     "id.unigramas.json": 4604291
+    },
+    "it": {
+     "it.bin": 301186354,
+     "it.unigramas.json": 4897482
+    },
+    "ka": {
+     "ka.bin": 96721035,
+     "ka.unigramas.json": 11065913
+    },
+    "lt": {
+     "lt.bin": 82412961,
+     "lt.unigramas.json": 5211932
+    },
+    "lv": {
+     "lv.bin": 57894660,
+     "lv.unigramas.json": 5273235
+    },
+    "mt": {
+     "mt.bin": 11791898,
+     "mt.unigramas.json": 1061836
+    },
+    "nl": {
+     "nl.bin": 293532747,
+     "nl.unigramas.json": 5202121
+    },
+    "pl": {
+     "pl.bin": 254917476,
+     "pl.unigramas.json": 5173275
+    },
+    "pt": {
+     "pt.bin": 210577546,
+     "pt.unigramas.json": 4803782
+    },
+    "ro": {
+     "ro.bin": 172077652,
+     "ro.unigramas.json": 4860181
+    },
+    "ru": {
+     "ru.bin": 254203600,
+     "ru.unigramas.json": 8291724
+    },
+    "sk": {
+     "sk.bin": 106954443,
+     "sk.unigramas.json": 5144827
+    },
+    "sl": {
+     "sl.bin": 119818728,
+     "sl.unigramas.json": 4908947
+    },
+    "sv": {
+     "sv.bin": 249255099,
+     "sv.unigramas.json": 5399287
+    },
+    "sw": {
+     "sw.bin": 22806497,
+     "sw.unigramas.json": 2005412
+    },
+    "ta": {
+     "ta.bin": 26950675,
+     "ta.unigramas.json": 1066150
+    },
+    "tr": {
+     "tr.bin": 207739130,
+     "tr.unigramas.json": 5301402
+    },
+    "uk": {
+     "uk.bin": 195098844,
+     "uk.unigramas.json": 8073580
+    }
+   },
+   "licencia": "CC BY-SA 4.0 (textos de Wikipedia) y CC0 (frases de Common Voice)",
+   "oculto": true
+  },
+  "voz-h": {
+   "descripcion": "Voz a texto stt-h (8 bits; versión 0.4): español, catalán, gallego, euskera y portugués. Ojo: su ONNX publicado tiene el fallo de la máscara de atención (una ficha de más a la izquierda; WER +3 % frente a PyTorch)",
    "carpeta": "amanuensis-voz-h-1",
    "ficheros": {
     "stt.json": 369,
@@ -81,7 +336,26 @@
     "tokens_plano.json": 48251,
     "tokens_rico.json": 73968
    },
-   "licencia": "Apache-2.0 (pesos); datos MLS CC BY 4.0, Common Voice CC0, VoxPopuli CC0, FLEURS CC BY 4.0"
+   "licencia": "Apache-2.0 (pesos); datos MLS CC BY 4.0, Common Voice CC0, VoxPopuli CC0, FLEURS CC BY 4.0",
+   "oculto": true
+  },
+  "maqueta-minima": {
+   "descripcion": "Maquetación mínima de Amanuensis Ligero (2,5 M; CPU y navegador): renglones con línea base curva y alto, zonas con tipo, orden de lectura y orientación de página; recorte enderezado por la línea base. Por defecto en Ligero y su modo rápido (no en la sonda del modo automático); AMANUENSIS_MAQUETA_MINIMA=0 la apaga.",
+   "carpeta": "amanuensis-maqueta-minima-1",
+   "ficheros": {
+    "config.json": 1127,
+    "maqueta.onnx": 9171964,
+    "orden.onnx": 751177
+   },
+   "licencia": "pesos propios; maestros pg_lineas1 (datos abiertos) y mq_v4e (maquetación v4: su LoRA viene del lector v3, entrenado con datos CC BY-NC 4.0), así que uso no comercial como Amanuensis; datos: SegmOnto/HTR-United, cBAD, DocLayNet, YALTAi, Internet Archive y Wellcome (dominio público), arXiv CC BY, sintéticas propias",
+   "oculto": true
   }
+ },
+ "alias": {
+  "completo": "amanuensis",
+  "completo-coreml": "amanuensis-coreml",
+  "voz2": "voz",
+  "amanuensis-voz": "voz",
+  "amanuensis-ligero": "ligero"
  }
 }

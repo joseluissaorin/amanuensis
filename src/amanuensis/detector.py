@@ -72,11 +72,47 @@ def corte_xy(cajas):
     return rec(list(range(len(cajas))))
 
 
+MAX_GCN = 1500  # renglones como mucho para el orden por grafo (más, el de siempre)
+
+
+def modo_orden() -> str:
+    """AMANUENSIS_ORDEN: «gcn» (orden por grafo disperso, orden_gcn.py, en todas las páginas y tamaños), «prensa» (el
+    grafo solo en las páginas a dos columnas o más), «ligero» (el perceptrón por pares) o «columnas» (corte XY con
+    canales). Vacío = «prensa»: el grafo en prensa y revistas, el perceptrón en lo demás. Sin pesos, lo de siempre."""
+    m = os.environ.get("AMANUENSIS_ORDEN", "").strip().lower()
+    return m if m in ("gcn", "prensa", "ligero", "columnas") else ""
+
+
+def orden_gcn(cajas, tam):
+    """Orden por grafo (orden_gcn.py) o None si no hay pesos, la página no cabe o falla: quien llama sigue con el suyo."""
+    if tam is None or len(cajas) < 2 or len(cajas) > MAX_GCN:
+        return None
+    try:
+        from . import orden_gcn as G
+
+        m = G.modelo()
+        if m is None:
+            return None
+        o = [int(i) for i in G.ordenar(m, cajas, tam)]
+    except Exception:
+        return None
+    return o if sorted(o) == list(range(len(cajas))) else None
+
+
 def orden_lectura(cajas, modo="aprendido", tam=None):
-    """«aprendido» (por defecto si hay pesos y se conoce el tamaño de la página): orden por pares (orden.py);
-    «columnas»: corte XY con canales de columna (impreso moderno); «xy»: corte XY simple (manuscritos)."""
+    """«aprendido» (por defecto si hay pesos y se conoce el tamaño de la página): orden por pares (orden.py), o el
+    orden por grafo si AMANUENSIS_ORDEN=gcn; «gcn»: el orden por grafo y, sin él, «columnas»; «columnas»: corte XY con
+    canales de columna (impreso moderno); «xy»: corte XY simple (manuscritos)."""
     if modo == "xy":
         return corte_xy(cajas)
+    if modo == "aprendido" and modo_orden() == "columnas":
+        modo = "columnas"
+    if modo == "gcn" or (modo == "aprendido" and modo_orden() == "gcn"):
+        o = orden_gcn(cajas, tam)
+        if o is not None:
+            return o
+        if modo == "gcn":
+            modo = "columnas"
     if modo == "aprendido" and tam is not None and len(cajas) > 1 and len(cajas) <= 400:
         from . import orden
 

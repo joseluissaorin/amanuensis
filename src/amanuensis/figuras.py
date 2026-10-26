@@ -38,6 +38,16 @@ def _dentro(l, c, m=0.0):
     return c[0] - m <= cx <= c[2] + m and c[1] - m <= cy <= c[3] + m
 
 
+def texto_corrido(dentro, c, minimo: int = 5, ancho: float = 0.35) -> bool:
+    """¿La zona de imagen contiene texto corrido (al menos `minimo` renglones de ancho medio >= `ancho` del de la zona)?
+    Los rótulos de un grabado o la leyenda de un sello son pocos y cortos; columnas de texto que la maquetación tomó por
+    imagen (anuncios, tablas, páginas densas) no deben salir del texto de la página."""
+    if len(dentro) < minimo:
+        return False
+    w = max(1.0, c[2] - c[0])
+    return float(np.mean([(l.caja[2] - l.caja[0]) / w for l in dentro])) >= ancho
+
+
 def procesar(paginas, figs_mq, originales, stem: str, escala=None):
     """paginas: [Pagina]; figs_mq: por página, lista de figuras de la maqueta (o None); originales: por página,
     función que devuelve la imagen en color a resolución original y el factor caja->píxel. Devuelve
@@ -49,9 +59,14 @@ def procesar(paginas, figs_mq, originales, stem: str, escala=None):
             continue
         hm = _hmed(p.lineas)
         orig, f = originales[k]()
-        for j, z in enumerate(fm, 1):
-            fid = f"p{k + 1:03d}_fig{j:02d}"
+        j = 0
+        for z in fm:
             c = [float(v) for v in z["caja"]]
+            dentro = [l for l in p.lineas if l.texto.strip() and _dentro(l, c)]
+            if z["tipo"] != "capitular" and texto_corrido(dentro, c):
+                continue  # una «figura» llena de renglones de texto corrido es un bloque de texto mal clasificado
+            j += 1
+            fid = f"p{k + 1:03d}_fig{j:02d}"
             fig = {"id": fid, "tipo": z["tipo"], "caja": [round(v, 1) for v in c], "conf": round(float(z["conf"]), 3),
                    "fichero": f"img/{stem}/{fid}.webp", "pie": "", "pie_lineas": [], "llamadas": [], "palabra": None,
                    "iconclass": z.get("iconclass", []), "duplicado_de": None}

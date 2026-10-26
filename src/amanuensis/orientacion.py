@@ -82,6 +82,9 @@ def orientar(img: Image.Image, cajas, detectar, leer):
     líneas más largas leídas en los dos sentidos (las cajas giradas, sin volver a detectar). Página tumbada: se
     prueban 90 y 270 (y su media vuelta)."""
     candidatos = [(0, img, cajas)]
+    # renglones diminutos (< 14 px): el lector no distingue derecho de revés y una media vuelta en falso destroza la página
+    if cajas and float(np.median([c[3] - c[1] for c in cajas])) < 14 and not tumbada(cajas):
+        return img, 0, cajas
     if tumbada(cajas):
         for g in (90, 270):
             im = img.rotate(g, expand=True)

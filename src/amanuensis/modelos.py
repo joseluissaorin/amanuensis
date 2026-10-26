@@ -36,7 +36,39 @@ def _local(m: dict) -> Path | None:
     return None
 
 
+def canonico(nombre: str) -> str:
+    """Nombre del catálogo a partir de un alias (los de versiones anteriores: «completo» -> «amanuensis», etc.)."""
+    return catalogo().get("alias", {}).get(nombre, nombre)
+
+
+def resolver(nombre: str) -> str:
+    """Nombre del modelo que se usará: si uno aún no publicado (pendiente) no está a mano, su «alternativa»."""
+    nombre = canonico(nombre)
+    cat = catalogo()["modelos"]
+    vistos = set()
+    while nombre in cat and nombre not in vistos:
+        vistos.add(nombre)
+        m = cat[nombre]
+        if not m.get("pendiente") or _a_mano(m) or not m.get("alternativa"):
+            return nombre
+        nombre = m["alternativa"]
+    return nombre
+
+
+def _a_mano(m: dict) -> bool:
+    if _local(m):
+        return True
+    for d in ([Path(entorno("MODELOS")) / m["carpeta"]] if entorno("MODELOS") else []) + [cache() / m["carpeta"]]:
+        if all((d / f).exists() for f in m["ficheros"]):
+            return True
+    return False
+
+
 def disponible(nombre: str) -> bool:
+    nombre = canonico(nombre)
+    if entorno("RUTA_" + nombre.upper().replace("-", "_")):
+        return True
+    nombre = resolver(nombre)
     m = catalogo()["modelos"][nombre]
     if _local(m):
         return True
@@ -77,7 +109,13 @@ def _bajar(url: str, destino: Path, tam: int):
 
 
 def ruta(nombre: str) -> str:
-    """Carpeta local del modelo; la descarga la primera vez."""
+    """Carpeta local del modelo (o de su alternativa si aún no está publicado); la descarga la primera vez.
+    AMANUENSIS_RUTA_<NOMBRE> (p. ej. AMANUENSIS_RUTA_LIGERO) fuerza una carpeta concreta (pruebas de modelos nuevos)."""
+    nombre = canonico(nombre)
+    forzada = entorno("RUTA_" + nombre.upper().replace("-", "_"))
+    if forzada:
+        return forzada
+    nombre = resolver(nombre)
     cat = catalogo()
     m = cat["modelos"][nombre]
     if entorno("MODELOS"):
@@ -91,6 +129,13 @@ def ruta(nombre: str) -> str:
     if faltan and m.get("pendiente"):
         raise FileNotFoundError(f"el modelo «{nombre}» aún no está publicado")
     base = entorno("ORIGEN", cat["base"]).rstrip("/")
+    _bajar_ficheros(m, destino, base)
+    _opcionales(m, destino, base)
+    return str(destino)
+
+
+def _bajar_ficheros(m: dict, destino: Path, base: str):
+    faltan = [f for f in m["ficheros"] if not (destino / f).exists()]
     for f in faltan:
         print(f"descargando {m['carpeta']}/{f} (solo la primera vez)", file=sys.stderr)
         spec = m["ficheros"][f]
@@ -113,4 +158,37 @@ def ruta(nombre: str) -> str:
                 p.unlink()
         else:
             _bajar(f"{base}/{m['carpeta']}/{f}", destino / f, spec)
-    return str(destino)
+
+
+def _opcionales(m: dict, destino: Path, base: str):
+    """Piezas opcionales (p. ej. los paquetes Core ML del modelo completo, solo en macOS con coremltools): se bajan y
+    se descomprimen la primera vez; si fallan, el modelo funciona sin ellas."""
+    op = m.get("opcional")
+    if not op or (op.get("cuando") == "coreml" and not _coreml()) or entorno("SIN_OPCIONALES") == "1":
+        return
+    try:
+        if all((destino / Path(z).parent / n).is_dir() for n, z in op.get("zip", {}).items()):
+            return
+        for f in op["ficheros"]:
+            (destino / f).parent.mkdir(parents=True, exist_ok=True)
+        _bajar_ficheros(dict(m, ficheros=op["ficheros"]), destino, base)
+        import zipfile
+
+        for n, z in op.get("zip", {}).items():
+            with zipfile.ZipFile(destino / z) as zf:
+                zf.extractall(destino / Path(z).parent)
+            (destino / z).unlink()
+    except Exception as e:  # noqa: BLE001
+        print(f"aviso: no se pudieron preparar las piezas opcionales de {m['carpeta']}: {e}", file=sys.stderr)
+
+
+def _coreml() -> bool:
+    import platform
+
+    if platform.system() != "Darwin":
+        return False
+    try:
+        import coremltools  # noqa: F401
+        return True
+    except Exception:
+        return False

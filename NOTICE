@@ -1,0 +1,46 @@
+Amanuensis
+Copyright 2026 José Luis Saorín Ferrer
+
+El código de este repositorio se distribuye con la licencia Apache 2.0 (LICENSE).
+The code in this repository is licensed under the Apache License 2.0 (LICENSE).
+
+Ficheros de datos y pesos que viajan con el paquete (src/amanuensis/) y no son Apache 2.0
+Bundled data and weight files that are not Apache 2.0
+-------------------------------------------------------------------------------------------
+
+continuidad.npz
+  Modelo de continuidad del texto (n-gramas de caracteres). USO NO COMERCIAL.
+  Entrenado en parte con Spanish Gothic Incunabula (HSMS), CC BY-NC 4.0
+  (https://creativecommons.org/licenses/by-nc/4.0/), y con texto de la Wikipedia
+  (volcado wikimedia/wikipedia 20231101), CC BY-SA 4.0
+  (https://creativecommons.org/licenses/by-sa/4.0/), por sus autores.
+  Text-continuity model. NON-COMMERCIAL USE; contains statistics derived from HSMS
+  (CC BY-NC 4.0) and Wikipedia text (CC BY-SA 4.0).
+
+perfiles.json
+  Perfiles de lengua (palabras funcionales y alfabeto de 31 lenguas). CC BY-SA 4.0.
+  Derivado de:
+  - FrequencyWords 2018, de Hermit Dave (https://github.com/hermitdave/FrequencyWords),
+    listas de frecuencias de los subtítulos de OpenSubtitles; contenido CC BY-SA 4.0.
+  - wikipedia-word-frequency, de Ilya Semenov
+    (https://github.com/IlyaSemenov/wikipedia-word-frequency), texto de la Wikipedia, CC BY-SA 4.0.
+  Language profiles derived from the above; CC BY-SA 4.0.
+
+orden_ligero.npz, orden_gcn.npz, orden_gcn_giro.npz
+  Pesos propios del orden de lectura. Apache 2.0.
+
+Modelos que se descargan aparte
+Downloaded models
+-------------------------------
+
+Los pesos que el paquete descarga la primera vez (Amanuensis, Amanuensis Ligero, Amanuensis Voz y las piezas
+internas) tienen la licencia de uso indicada en MODEL_CARD.md: Amanuensis y Ligero, uso no comercial (parte de
+sus datos de entrenamiento, HSMS y OHG, es CC BY-NC 4.0); Voz y los detectores, Apache 2.0; los modelos de
+lengua de la voz, CC BY-SA 4.0.
+
+Los modelos de visión parten del codificador de EmbeddingGemma 2 de Google, distribuido por Google con sus
+propias condiciones de licencia; los modelos de voz parten de su codificador de audio.
+The vision and speech models build on Google's EmbeddingGemma 2 encoders, used under Google's license terms.
+
+Los léxicos de la corrección léxica no van en el paquete: se construyen en la máquina del usuario a partir de
+FrequencyWords y wikipedia-word-frequency (CC BY-SA 4.0).
