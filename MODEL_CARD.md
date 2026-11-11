@@ -49,6 +49,25 @@ El conjunto se distribuye para **uso no comercial** mientras alguna pieza lo sea
 - Lo que aún hace mal: prensa a muchas columnas (el orden intercala columnas; CER de página ~70 en el examen) y letra
   moderna. Ver el informe técnico.
 
+### Modo prensa (1.2.0, `--prensa si`): piezas añadidas al modelo completo
+
+Carpeta `amanuensis-2` (la `amanuensis-1` de la 1.1 queda como estaba). Entrenadas con el corpus de prensa histórica GRESEL (UNED; repositorio
+greseluned/olmOCR-finetuning, páginas de Transkribus; **el corpus no declara licencia: no se redistribuye ni él, ni sus imágenes ni sus anotaciones; solo los pesos,
+para uso no comercial**) más sintéticas propias:
+
+| pieza | qué es | licencia de uso |
+|---|---|---|
+| lector de prensa (`lector_prensa/`, Core ML opcional) | R3: el lector grande afinado en prensa (14 753 caracteres) | no comercial |
+| maquetación v5p (`prensa_cod_mq_q8`, `prensa_maqueta_fp32`, `prensa_orden_fp32`, `prensa_orden_par`) | zonas, líneas y orden de lectura de prensa a varias columnas | no comercial |
+| renglones i50 (`lineas_prensa_fp32`) | detector de renglones de prensa (cajas dobles 26 → 6 en la validación de GRESEL) | no comercial |
+| `prensa-lm`, `prensa-lm-ligero` | n-gramas de caracteres (orden 7) para el haz; el segundo, podado a 8 MB, para Ligero | no comercial (texto GRESEL y Wikisource, CC BY-SA) |
+| `lm-neuronal` | GPT de caracteres de 42 MB condicionado por el renglón anterior (puerta del haz; opcional, `AMANUENSIS_HAZ_LMN=1`) | no comercial |
+| `articulos-red` (`--articulos red`) | cabeza «mismo artículo» por pares: visión EG2 hasta la capa 12 + EmbeddingGemma 2 de texto + LM + cabeza (~960 MB) | términos de Gemma (EG2, EmbeddingGemma 2) y no comercial (cabeza y LM) |
+| `uvdoc` (`--aplanar`) | UVDoc, 8 M de parámetros, aplanado de fotos | **MIT** (Tanguy Magne y otros; `LICENSE-UVDoc.txt` va con el modelo) |
+
+Cifras (prueba de GRESEL, 88 págs.): CER de página 8,00 con `--prensa si`; 8,44 con Ligero. Artículos: B-cubed 88,1 frente a 88,2 (dots.ocr) y
+91,2 (Chandra 2) contra una verdad *plata* de Gemini en 50 págs. de validación; 79,8 las reglas. Las sumas sha256 de cada fichero están en el catálogo.
+
 ## Amanuensis Ligero (`ligero`, 3,5 M parámetros; modo rápido con el lector Mínimo, 1,07 M)
 
 - Página: maquetación mínima (`maqueta-minima`, 2,5 M: renglones con línea base curva, zonas, orden y orientación;
@@ -177,6 +196,7 @@ versión 0.4. La maquetación mínima está integrada pero apagada (`AMANUENSIS_
 | Wikisource (ca, de, en, es, fr, gl, it, la, pt) | facsímiles de dominio público con su transcripción | CC BY-SA 4.0 (texto) |
 | Líneas de PDF nacidos digitales | impreso moderno | corpus privado; no se redistribuye |
 | Sintéticas (moderno e histórico) | textos de Wikipedia y Gutenberg con tipos libres | CC BY-SA / dominio público; tipos OFL |
+| **Prensa histórica GRESEL (UNED)** (1.2.0: lector, maquetación, detector de renglones, LM y artículos) | 737 págs. de entrenamiento; validación y prueba aparte | **sin licencia declarada por el corpus; no se redistribuye, solo los pesos derivados (no comercial)** |
 | Pseudoetiquetas de manuscritos | imágenes de Internet Archive etiquetadas por acuerdo entre un modelo de Gemini y un modelo de lengua | condiciones de cada facsímil |
 
 Descriptores de imagen: Iconclass (CC0), 7071 notaciones de hasta cinco caracteres, recuperadas por similitud en el

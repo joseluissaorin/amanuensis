@@ -44,3 +44,18 @@ The vision and speech models build on Google's EmbeddingGemma 2 encoders, used u
 
 Los léxicos de la corrección léxica no van en el paquete: se construyen en la máquina del usuario a partir de
 FrequencyWords y wikipedia-word-frequency (CC BY-SA 4.0).
+
+Piezas que se bajan aparte (catálogo, no viajan en el paquete) / Pieces downloaded separately (catalogue)
+-------------------------------------------------------------------------------------------
+
+uvdoc (aplanado de fotos / photo flattening)
+  UVDoc: Tanguy Magne y otros, https://github.com/tanguymagne/UVDoc, licencia MIT. Se distribuye con LICENSE-UVDoc.txt.
+  UVDoc by Tanguy Magne et al., MIT licence, shipped with its LICENSE-UVDoc.txt.
+
+articulos-red
+  Visión: EmbeddingGemma 2 (Google), sujeta a los términos de Gemma (https://ai.google.dev/gemma/terms). Cabeza y LM de caracteres:
+  pesos propios entrenados con prensa histórica GRESEL (UNED); uso no comercial. El corpus no se redistribuye.
+
+Modo prensa: lector, maquetación, detector de renglones y modelos de lengua (amanuensis-2, prensa-lm*, lm-neuronal)
+  Pesos propios entrenados con el corpus de prensa histórica GRESEL (UNED) y texto de Wikisource (CC BY-SA 4.0). USO NO COMERCIAL.
+  Only the weights are published, never the GRESEL corpus, its images or annotations. NON-COMMERCIAL USE.

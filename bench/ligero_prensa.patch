@@ -1,0 +1,74 @@
+diff --color -ruN -x _ src/amanuensis/completo_ligero.py /tmp/amsrc/amanuensis/completo_ligero.py
+--- src/amanuensis/completo_ligero.py	1970-01-01 01:00:00
++++ /tmp/amsrc/amanuensis/completo_ligero.py	2026-11-11 09:32:11
+@@ -0,0 +1,33 @@
++"""«Ligero prensa»: el lector de Ligero (mini.onnx) leyendo los renglones que encuentra la maquetación del modelo completo
++(maquetación, detector de renglones i50 y orden v5p en Core ML u ONNX). Se usa con `-m ligero --prensa si` si el modelo completo está.
++
++Adapta LectorMini al contrato del lector de `Completo`: `leer(recortes, presupuesto, sesgo) -> [(texto, conf, confs, fotogramas)]`
++con recortes [alto, w16] en 0-255 ya enderezados y normalizados; los fotogramas son de 4 px de recorte (columnas de 16 px y 4 por columna).
++Ligero espera recortes con margen (0,25 alturas arriba y abajo, 0,6 a los lados) que él mismo recorta: se les añade ese margen de papel.
++"""
++from __future__ import annotations
++
++import numpy as np
++from PIL import Image
++
++
++class LectorLigeroEnCompleto:
++    def __init__(self, lector, alto: int = 96, max_cols: int = 240):
++        self.l, self.alto, self.max_cols = lector, alto, max_cols
++        self.variante = "ligero"
++        self.haz = self.corrector = None  # el haz de Ligero actúa dentro de lector.voraz (HAZ_CLASICO)
++
++    def leer(self, recortes, presupuesto=0, sesgo=0.0):
++        pils, pad = [], []
++        for a in recortes:
++            a = np.asarray(a, np.uint8)
++            h, w = a.shape
++            py, px = int(round(0.25 * h)), int(round(0.6 * h))
++            g = np.full((h + 2 * py, w + 2 * px), 255, np.uint8)
++            g[py:py + h, px:px + w] = a
++            pils.append(Image.fromarray(g))
++            pad.append(px)
++        out = []
++        for ll, px in zip(self.l.leer(pils, sesgo=sesgo), pad):
++            out.append((ll.texto, ll.conf, list(ll.confs), [(x - px) / 4.0 - 0.5 for x in ll.xs]))
++        return out
+diff --color -ruN -x _ src/amanuensis/motor.py /tmp/amsrc/amanuensis/motor.py
+--- src/amanuensis/motor.py	2026-11-11 06:43:27
++++ /tmp/amsrc/amanuensis/motor.py	2026-11-11 09:32:11
+@@ -221,6 +221,11 @@
+         self._lectores, self._det = {}, None
+         # modelo completo (maquetación v4 y lector grande, ONNX/Core ML): «auto» y «completo»
+         self.con_completo = (modelo in ("auto", "completo") and not rapido and maqueta != "no" and _hay("completo"))
++        # «Ligero prensa»: -m ligero --prensa si con la maquetación del modelo completo (renglones i50, orden v5p, Core ML) y el lector de Ligero
++        self.ligero_prensa = bool(modelo == "ligero" and self.prensa in ("si", "1") and not rapido and maqueta != "no" and _hay("completo")
++                                  and modelos.disponible("ligero") and os.environ.get("AMANUENSIS_LIGERO_PRENSA", "1") != "0")
++        if self.ligero_prensa:
++            self.con_completo, self.modelo = True, "completo"
+         if modelo == "completo" and not self.con_completo:
+             raise SystemExit("el modelo Amanuensis no está disponible (aún sin publicar: AMANUENSIS_REPO o AMANUENSIS_MODELOS)")
+         # maquetación antigua del repositorio (mq_v3 por PyTorch): solo si no hay modelo completo
+@@ -271,6 +276,12 @@
+             prov = self.prov if con_cuda(self.prov) else None
+             self._completo = Completo(modelos.ruta("completo"), proveedores=prov, hilos=self.hilos, arrojo=self.arrojo,
+                                      prensa=self.prensa in ("si", "1"))
++            if getattr(self, "ligero_prensa", False):
++                from .completo_ligero import LectorLigeroEnCompleto
++
++                self._completo.lec = LectorLigeroEnCompleto(self.lector("ligero"), self._completo.lec.alto, getattr(self._completo.lec, "max_cols", 240))
++                self._completo.ml = None
++                self._completo.altos = [self._completo.lec.alto]
+             self.log(f"  modelo Amanuensis cargado en {time.time() - t0:.1f} s")
+         return self._completo
+ 
+@@ -739,7 +750,7 @@
+         """Pone el haz con LM en el lector grande si procede (una vez). -> True si está activo."""
+         if getattr(self, "_haz_listo", None) is not None:
+             return self._haz_listo
+-        quiere = self.haz == "si" or (self.haz == "auto" and HAZ_POR_DEFECTO)
++        quiere = (self.haz == "si" or (self.haz == "auto" and HAZ_POR_DEFECTO)) and not getattr(self, "ligero_prensa", False)
+         self._haz_listo = False
+         if quiere and self.prensa in ("si", "1"):
+             ruta = modelos.entorno("RUTA_PRENSA_LM") if modelos.entorno("RUTA_PRENSA_LM") else (modelos.ruta("prensa-lm") if modelos.disponible("prensa-lm") else None)

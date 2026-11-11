@@ -513,7 +513,12 @@ def secuencia(p: Pagina, capitulares: bool = False):
     anclas = sorted(((ancla(p, f), n, f) for n, f in enumerate(figs)), key=lambda t: (t[0], t[1]))
     out, k = [], 0
     pos = {i: n for n, i in enumerate(range(len(p.lineas)))}
-    for b in bloques(p):
+    bs = bloques(p)
+    from .articulos import de_pagina
+
+    for a in de_pagina(p)[1:]:  # primer bloque de cada artículo (menos el primero de la página): separador en Markdown y TEI
+        bs[a["bloques"][0]]["art_ini"] = True
+    for b in bs:
         ini = pos[b["lineas"][0]]
         while k < len(anclas) and anclas[k][0] <= ini:
             out.append(("f", anclas[k][2])); k += 1
@@ -573,7 +578,7 @@ FIN_DE_FRASE = ".!?:;»”\")…]"
 FUERA_DE_LECTURA = set(FW) | {"musica", "artefacto", "figura"}
 
 
-def corrido(d: Documento, rico: bool = True) -> list:
+def corrido(d: Documento, rico: bool = True, articulos: bool = False) -> list:
     """El documento como texto de lectura: [(rol, texto en Markdown)] sin mobiliario (folios, cabeceras, signaturas,
     restos del escaneo, rótulos de figura) y con lo que el cambio de página corta vuelto a unir: la palabra partida
     («comu-» / «nicación») y el párrafo que sigue en la página siguiente (sin fin de frase y empezando en minúscula). Las
@@ -596,6 +601,9 @@ def corrido(d: Documento, rico: bool = True) -> list:
                 out.append(("figura", f"![{alt}]({x['fichero']})" + (f"\n\n*{x['pie']}*" if x["pie"] else "")))
                 continue
             rol, t = x["rol"], x["texto"]
+            if articulos and x.get("art_ini") and out:
+                out.append(("articulo", "---"))
+                sigue = False
             if rol in FUERA_DE_LECTURA:
                 continue
             # una letra o cifra suelta que no es un numerador («a)», «3.») es un resto del escaneo
@@ -680,7 +688,7 @@ def titulo_md(t: str) -> str:
 
 def md(d: Documento) -> str:
     if not d.fiel:
-        return "\n\n".join(t for _, t in corrido(d)) + "\n"
+        return "\n\n".join(t for _, t in corrido(d, articulos=True)) + "\n"
     partes = []
     for i, p in enumerate(d.paginas):
         if len(d.paginas) > 1:
@@ -697,6 +705,8 @@ def md(d: Documento) -> str:
                 partes.append(f"![{alt}]({x['fichero']})" + (f"\n\n*{x['pie']}*" if x["pie"] else ""))
                 continue
             rol, t = x["rol"], x["texto"]
+            if x.get("art_ini"):
+                partes.append("---")
             if rico and rol in ("texto", "lista", "margen", "nota"):
                 t = md_rico([p.lineas[j] for j in x["lineas"]])
             if rol == "texto":
@@ -803,6 +813,11 @@ def a_json(d: Documento) -> str:
         for l, lj in zip(p.lineas, js["lineas"]):
             lj["dudas"] = [[k, c] for k, c in enumerate(l.confs) if c < d.umbral_duda and not l.texto[k:k + 1].isspace()] if len(l.confs) == len(l.texto) else []
         js["bloques"] = [{k: v for k, v in b.items()} for b in bloques(p)]
+        from .articulos import de_pagina
+
+        arts = de_pagina(p)
+        if arts:
+            js["articulos"] = arts
         er = _estructura_rica(p)
         if er is not None:
             js["estructura_rica"] = er.a_json(p.como_cadena(), p.estructura)
@@ -1075,6 +1090,8 @@ def tei(d: Documento) -> str:
                          f'<graphic url={quoteattr(x["fichero"])}/>{head}<figDesc>{escape(x["alt"])}</figDesc>{ic}</figure>')
                 continue
             rol, ls = x["rol"], x["lineas"]
+            if x.get("art_ini"):
+                s.append('</div><div type="article">')
             if rol == "margen":
                 ref = f' target="#f{i+1}_l{x["ancla"]+1}"' if "ancla" in x else ""
                 s.append(f'<note place="margin"{ref}>' + "".join(lb(j) for j in ls) + "</note>")

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amanuensis"
-version = "1.1.1"
+version = "1.2.0"
 description = "Reads any page in history and writes down what it is told: OCR and HTR for print and manuscripts of every period, page layout, and speech to text with word timings, locally, on top of EmbeddingGemma 2"
 readme = "README.md"
 license = "Apache-2.0"
@@ -30,9 +30,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gpu = ["onnxruntime-gpu>=1.19,<1.23", "nvidia-cublas-cu12", "nvidia-curand-cu12", "nvidia-cufft-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-runtime-cu12"]
+gpu = ["onnxruntime-gpu>=1.19,<1.23", "nvidia-cublas-cu12", "nvidia-curand-cu12", "nvidia-cufft-cu12", "nvidia-cudnn-cu12", "nvidia-cuda-runtime-cu12", "onnx"]
 voz-lm = ["pyctcdecode>=0.5", "kenlm; python_version < '3.13'"]
 coreml = ["coremltools>=8; sys_platform == 'darwin'"]
+articulos = ["tokenizers"]  # --articulos red (cabeza de artículos aprendida); sin él se usan las reglas
 
 [project.urls]
 Homepage = "https://github.com/joseluissaorin/amanuensis"

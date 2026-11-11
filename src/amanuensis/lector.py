@@ -28,7 +28,9 @@ def sesion(ruta: str, hilos: int = 0, proveedores: list | None = None):
     so.inter_op_num_threads = 1
     so.enable_cpu_mem_arena = False  # con lotes de forma variable la arena crecía sin parar
     so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    return ort.InferenceSession(ruta, so, providers=proveedores or ["CPUExecutionProvider"])
+    from .gpu import crear_sesion, elegir
+
+    return crear_sesion(lambda: ort.InferenceSession(elegir(ruta, proveedores), so, providers=proveedores or ["CPUExecutionProvider"]), proveedores)
 
 
 @dataclass
@@ -89,7 +91,28 @@ def _signos_timidos(lp: np.ndarray, ids: np.ndarray, chars: list[str], umbral: f
     return ids, nuevas
 
 
+HAZ_CLASICO = None  # haz_lm.Decodificador para Ligero y Mínimo en modo prensa (lo pone Motor); None = lectura voraz de siempre
+
+
+def _top16(lp: np.ndarray):
+    K = min(16, lp.shape[1])
+    ii = np.argpartition(-lp, K - 1, axis=1)[:, :K]
+    v = np.take_along_axis(lp, ii, 1)
+    o = np.argsort(-v, axis=1)
+    return np.take_along_axis(v, o, 1), np.take_along_axis(ii, o, 1)
+
+
 def voraz(lp: np.ndarray, chars: list[str], logits: bool = False, sesgo: float = 0.0, signos: float = 0.0) -> LineaLeida:
+    ll = _voraz(lp, chars, logits, sesgo, signos)
+    if HAZ_CLASICO is not None and not logits and len(lp) and ll.texto:
+        v, ii = _top16(np.asarray(lp, np.float32))
+        r = HAZ_CLASICO.decodificar(v, ii, chars, (ll.texto, ll.conf, ll.confs, ll.xs))
+        if r[0] != ll.texto:
+            ll.texto, ll.confs, ll.xs = r[0], list(r[2]), list(r[3])
+    return ll
+
+
+def _voraz(lp: np.ndarray, chars: list[str], logits: bool = False, sesgo: float = 0.0, signos: float = 0.0) -> LineaLeida:
     """lp [T, C] (log-probabilidades, o logits si logits=True) -> texto, confianza media de los picos,
     x por carácter (en fotogramas) y probabilidad de cada carácter. `sesgo` se suma al blanco (clase 0) solo para
     decidir; las probabilidades que se devuelven son las del modelo, sin sesgo."""

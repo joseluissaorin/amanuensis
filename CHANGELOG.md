@@ -1,5 +1,54 @@
 # Cambios
 
+## 1.2.0 (11-11-2026): prensa, fotos y velocidad
+
+Campaña «prensa y fotos» sobre el corpus de prensa histórica GRESEL (UNED). Todo lo que sigue es opcional o se activa solo con
+`--prensa si`: el impreso moderno, los manuscritos y los demás modos no cambian.
+
+- **Modo prensa afinado** (`--prensa si`): lector de prensa (R3), maquetación y orden de lectura v5p, detector de renglones i50 y
+  haz con modelo de lengua de caracteres (alfa 0,3, beta 1, delta 8, sin tocar tildes ni mayúsculas). Prueba de GRESEL, 88 págs.,
+  CER de página 15,95 (1.1.1 sin modo prensa) → 9,20 (primer modo prensa) → **8,00**; Ligero con `--prensa si`, **8,44**
+  (`-m ligero --prensa si` usa la maquetación del modelo completo y el lector de Ligero). Con `--prensa auto`, una página que
+  Ligero lee como prensa se relee con ese modo.
+- **Fotos**: `--aplanar auto|si|no` (UVDoc, MIT, con selector «solo si hace falta»; solo imágenes, nunca PDF). Banco de 16 fotos reales
+  (referencia plata): CER 33,3 → **26,4**. En escaneos planos el selector salta alguna vez (1 de 90 en validación): por defecto no.
+- **Artículos**: `paginas[].articulos` en el JSON, separador en Markdown y `<div type="article">` en TEI; reglas por defecto y
+  `--articulos red` (cabeza aprendida, B-cubed **88,1** frente a 88,2 de dots.ocr y 91,2 de Chandra 2 sobre la misma verdad *plata*
+  de Gemini, no humana; 79,8 las reglas). Necesita `pip install "amanuensis[articulos] @ git+https://github.com/joseluissaorin/amanuensis"` y ~960 MB de pesos.
+- **Velocidad**: Core ML del codificador de página y del lector de prensa en el Mac (−27 % de tiempo por página); en GPU de NVIDIA
+  con CUDA 12, hasta ~1 s por página con varios procesos (L40S, 0,97 págs./s frente a 0,28 de Chandra 2 y 0,17 de dots.ocr;
+  ~0,23 $ por 1000 páginas). `--procesos N` reparte los ficheros. Un lote largo se relanza solo al pasar de ~3 GB para no
+  rebasar los 6 GB.
+- **Opcionales**: `--lector dots --servidor URL` (dots.ocr por un servidor de API OpenAI) y `--lector auto` (solo las páginas muy dudosas).
+- **Catálogo** con sumas sha256 (se comprueban al bajar) y el modelo completo en una carpeta nueva (`amanuensis-2`); la de la 1.1
+  sigue donde estaba. Piezas nuevas: lector y maquetación de prensa, `prensa-lm`, `prensa-lm-ligero`, `lm-neuronal`, `articulos-red`, `uvdoc`.
+- **Ligero y Mínimo**: el rectificado y el pulido pasan a `auto` (apagados en Ligero y Mínimo, donde empeoraban el impreso moderno y
+  Wikisource); el haz con modelo de lengua es de serie en Ligero con `--prensa si`.
+- Limitaciones: las cifras de prensa salen del propio corpus de GRESEL (la prueba no entró en ningún entrenamiento, pero es la misma
+  hemeroteca); La Vanguardia de Manila a ~100 ppp (3 planas no vistas) sigue en CER ~15.
+
+## Modo prensa, primera versión (10-11-2026, dentro de la 1.2.0)
+
+Prensa a varias columnas (`--prensa auto|si|no`, `Motor(prensa=…)`, `AMANUENSIS_PRENSA`; `auto` solo actúa con tres
+columnas o más, `AMANUENSIS_PRENSA_COLUMNAS` cambia el umbral). Nuevo módulo `prensa.py`; actúa después del modelo
+completo y de la sonda de Ligero, sin pesos nuevos.
+
+- **Renglones dobles**: una caja con dos o más bandas de tinta separadas por un valle se parte por el perfil y cada trozo
+  se relee con el lector grande; el corte se acepta si los trozos leen al menos 1,4 veces más letras que la caja entera,
+  y los renglones repetidos se quitan. Las franjas del borde se recuperan solo si no repiten un renglón vecino.
+- **Cortes por el canal** con la x de cada carácter: el canal se deduce de los renglones vecinos (acaban a un lado y
+  empiezan al otro; casi ninguno lo cruza).
+- **Orden de Breuel (2003)** con solape relativo al ancho (las cajas invaden unos píxeles la columna vecina) y los trozos
+  de un mismo titular agrupados (misma zona, letra de titular, mismo estilo de mayúsculas). El corte XY por filas
+  intercalaba columnas cuando los renglones se alinean de una a otra.
+- **Bloques de columna** como zonas: TXT, Markdown, TEI y PAGE XML salen por columnas y artículos, con orden de lectura.
+- Medido con el corpus de GRESEL (repo greseluned/olmOCR-finetuning, PAGE de Transkribus; sin las páginas cuya
+  transcripción es de otra página): prueba, 88 págs., CER de página 15,95 → **9,20** (mediana 11,60 → 5,37), CER por región
+  10,40 → **6,31**, WER 20,94 → 13,59 (Tesseract 5 spa: 17,25 de CER y 29,73 de WER); validación, 90 págs., 14,04 → **9,60**
+  y 7,57 → **4,72**; La Vanguardia de Manila, 9 págs., 54,54 → **24,24** y 38,05 → **8,55**. Mejoran 47 páginas y empeoran 13
+  (prueba). Límite conocido: los sumarios con título y autor en la misma fila se leen columna a columna.
+- Coste: unos segundos más por plana (relectura de los renglones dobles).
+
 ## 1.1.1 (26-10-2026)
 
 La maquetación de Amanuensis Ligero y de su modo rápido se elige **página a página**.

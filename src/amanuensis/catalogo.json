@@ -1,14 +1,13 @@
 {
- "version": 3,
+ "version": 4,
  "base": "https://pub-0cd610c698a64e1a9feb1660374d62c7.r2.dev/v1",
  "modelos": {
   "amanuensis": {
-   "descripcion": "Amanuensis: la página entera (renglones de alta resolución, maquetación con zonas, tablas, notas al margen y orden aprendido, recorte enderezado por la línea base y lector grande con selector por escritura), ONNX de 8 bits; en el Mac, Core ML opcional",
-   "carpeta": "amanuensis-1",
+   "descripcion": "Amanuensis: la página entera (renglones, maquetación con zonas, tablas, notas al margen y orden aprendido, lector grande con selector por escritura); en el modo prensa, lector, maquetación, orden y detector de renglones afinados con prensa histórica; ONNX de 8 bits; en el Mac, Core ML opcional",
+   "carpeta": "amanuensis-2",
    "ficheros": {
     "cod_base_q8.onnx": 153932057,
     "cod_mq_q8.onnx": 153932057,
-    "completo.json": 1188,
     "lineas_fp32.onnx": 13934474,
     "maqueta_fp32.onnx": 10317158,
     "orden_fp32.onnx": 4517278,
@@ -19,28 +18,81 @@
     "densa/cod_mq_q8.onnx": 153932057,
     "densa/maqueta_fp32.onnx": 10317158,
     "densa/orden_fp32.onnx": 4517278,
-    "densa/orden_par.npz": 302026
+    "densa/orden_par.npz": 302026,
+    "lineas_prensa_fp32.onnx": 13934474,
+    "prensa_cod_mq_q8.onnx": 153932057,
+    "prensa_maqueta_fp32.onnx": 10317158,
+    "prensa_orden_fp32.onnx": 4517278,
+    "prensa_orden_par.npz": 302026,
+    "lector_prensa/cabeza_literal_q8.onnx": 41835447,
+    "lector_prensa/codificador_q8.onnx": 153876912,
+    "lector_prensa/config.json": 102550,
+    "completo.json": 1648
    },
    "requiere": [
     "multilingue"
    ],
-   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG); el lector grande y el adaptador de la maquetación parten del lector v3",
+   "licencia": "uso no comercial (CC BY-NC 4.0 heredada de parte de los datos de entrenamiento: HSMS, OHG); lector, maquetación y detector de prensa afinados con el corpus de prensa histórica GRESEL (UNED), solo los pesos",
    "opcional": {
     "ficheros": {
      "coreml/lector.zip": {
-      "bytes": 348672937,
+      "bytes": 318501698,
       "partes": 2
      },
      "coreml/maqueta.zip": {
-      "bytes": 325121819,
+      "bytes": 283724091,
+      "partes": 1
+     },
+     "coreml/cod_base.zip": {
+      "bytes": 238351115,
+      "partes": 1
+     },
+     "coreml/lector_prensa.zip": {
+      "bytes": 318507585,
       "partes": 2
+     },
+     "coreml/maqueta_prensa.zip": {
+      "bytes": 283725752,
+      "partes": 1
      }
     },
     "zip": {
      "lector": "coreml/lector.zip",
-     "maqueta": "coreml/maqueta.zip"
+     "maqueta": "coreml/maqueta.zip",
+     "cod_base": "coreml/cod_base.zip",
+     "lector_prensa": "coreml/lector_prensa.zip",
+     "maqueta_prensa": "coreml/maqueta_prensa.zip"
     },
     "cuando": "coreml"
+   },
+   "sha256": {
+    "cod_base_q8.onnx": "9475f55cdbf2aac0863a5b7672b87212be6b1f8c52024937d63570e28d74fc2e",
+    "cod_mq_q8.onnx": "f6438e8df43b823cdbcf0311f5e5218bbb0af6895016995d08f6b85f21185864",
+    "lineas_fp32.onnx": "9104780442d12486dde938d17c0fcce741ff33aca8eba80a18de59c67972e0ef",
+    "maqueta_fp32.onnx": "967ab1ecb5ee2eba3432cf23ee6af09a87f6880884675ecd06aec6c888b4594e",
+    "orden_fp32.onnx": "015cba9fa0f2041e3e7ef93c98dee6dcedbf6df3fe40175f036b52da4fcc5928",
+    "orden_par.npz": "8b833e52faa430b1ef875b377756460c3fa11dba6c4d3f75d9ae8535e26def5c",
+    "lector/cabeza_literal_q8.onnx": "29ba723accd681ec2d480dad51085c033d378e367514675ab4226d7147914e3b",
+    "lector/codificador_q8.onnx": "cf45231e6956b0d75b71cf78f0c9523e04c26baf831619981f06bf298edf4a23",
+    "lector/config.json": "079606b82cf38333f8e115e0f592afcfaf92e91f07be8ae49c14e778321f502a",
+    "densa/cod_mq_q8.onnx": "8b7c2c2908afcd810d6f94c2ba7ee6085ebbc3fdd91c5aecf1aea9140e7a938c",
+    "densa/maqueta_fp32.onnx": "1ab1f93566a13f99ea2695ca6ef69edf6971f1a863a414660c6529555a7b8f41",
+    "densa/orden_fp32.onnx": "224b6db6cf16b41e53990417eb1cd57b81d566fead8a80ebef3b35884675bf2a",
+    "densa/orden_par.npz": "92dfa5677aff9ec8c450121c1c96286735bfb7a88932a0bd1cda6495809172b0",
+    "lineas_prensa_fp32.onnx": "34d11c1cd4efcf89f5ada35e6a2b6e5f24f3c81c824f03c414e221f62b46c7d6",
+    "prensa_cod_mq_q8.onnx": "e90fc1778e55342378000949a076a8ec0abfa29b4342111e1e0b2b69252487e7",
+    "prensa_maqueta_fp32.onnx": "e6e87bc42299c8650d26079c60cf8c175092add49df5e9c9f13122b020b0d379",
+    "prensa_orden_fp32.onnx": "7d15e0d69a491cacbff618ea080c4b21304fb1b2776f80ba390e008f8e8a69eb",
+    "prensa_orden_par.npz": "0c0e11ad4cd11b9681d5e4b8c57faf56e9254efb71d9791f0ee565bb98404e8a",
+    "lector_prensa/cabeza_literal_q8.onnx": "4a4962d805e447eeaa5eb31805fbca40118005f3b90aeb3cc0b5bceefafc283e",
+    "lector_prensa/codificador_q8.onnx": "76a3eb5521873002ba3fba964cdbff838bef7ad247aeb931719cd0ddd69c19da",
+    "lector_prensa/config.json": "bb078fb916f4544af8af6fca39924abb8939ea65c35e2003a65dc7c23c1f36a3",
+    "completo.json": "34b143d80beb3a0a15661030cebd8f90b6a19d7e1d9b543e86f934932419bdeb",
+    "coreml/lector.zip": "962f31cceaad0cdc5b259f9942df39be31c314847bbcbc10b03d194c1ea5719a",
+    "coreml/maqueta.zip": "d18ff3af6182a570b78fee76df389782eebbaa37cd89207436a8d6f7f60f74d7",
+    "coreml/cod_base.zip": "c8962c3e35f0cda14906ef7b65bcc00cb29557c95acf74db17033cff32f8573f",
+    "coreml/lector_prensa.zip": "d15f62eae659a369062aa164ac58b502c2137faa75b61f2c16bab33f4a7d30e8",
+    "coreml/maqueta_prensa.zip": "20ec828d5b0f198ff2d378ca5ba6208ff238905bdc265ad2d2e2871e51508852"
    }
   },
   "ligero": {
@@ -349,6 +401,204 @@
    },
    "licencia": "pesos propios; maestros pg_lineas1 (datos abiertos) y mq_v4e (maquetación v4: su LoRA viene del lector v3, entrenado con datos CC BY-NC 4.0), así que uso no comercial como Amanuensis; datos: SegmOnto/HTR-United, cBAD, DocLayNet, YALTAi, Internet Archive y Wellcome (dominio público), arXiv CC BY, sintéticas propias",
    "oculto": true
+  },
+  "prensa-lm": {
+   "descripcion": "Modelo de lengua de caracteres (n-grama orden 7, Witten-Bell; prensa histórica en español) para el haz del modo prensa (--haz)",
+   "carpeta": "amanuensis-prensa-lm-1",
+   "ficheros": {
+    "meta.json": 1041,
+    "o0_a.npy": 676,
+    "o0_clave.npy": 1224,
+    "o0_ctx.npy": 136,
+    "o0_lam.npy": 132,
+    "o1_a.npy": 22104,
+    "o1_clave.npy": 44080,
+    "o1_ctx.npy": 1224,
+    "o1_lam.npy": 676,
+    "o2_a.npy": 204648,
+    "o2_clave.npy": 409168,
+    "o2_ctx.npy": 43184,
+    "o2_lam.npy": 21656,
+    "o3_a.npy": 921840,
+    "o3_clave.npy": 1843552,
+    "o3_ctx.npy": 395048,
+    "o3_lam.npy": 197588,
+    "o4_a.npy": 2590416,
+    "o4_clave.npy": 5180704,
+    "o4_ctx.npy": 1766808,
+    "o4_lam.npy": 883468,
+    "o5_a.npy": 2542036,
+    "o5_clave.npy": 5083944,
+    "o5_ctx.npy": 2224152,
+    "o5_lam.npy": 1112140,
+    "o6_a.npy": 3803496,
+    "o6_clave.npy": 7606864,
+    "o6_ctx.npy": 4001584,
+    "o6_lam.npy": 2000856,
+    "o7_a.npy": 4810424,
+    "o7_clave.npy": 9620720,
+    "o7_ctx.npy": 5845952,
+    "o7_lam.npy": 2923040
+   },
+   "oculto": true,
+   "licencia": "entrenado con texto de prensa histórica GRESEL (UNED) y Wikisource (CC BY-SA); solo pesos; uso no comercial",
+   "sha256": {
+    "meta.json": "b088a3eba7675c0e701b97304f8da4dbbe0ce823ea6e66ab19bde155ade5dd7d",
+    "o0_a.npy": "752cff41b8e3b1cd677a776c56055de5694b46c95b179ffb55f1d026710ef073",
+    "o0_clave.npy": "043ede6904273cb59710aeb0e8ca535c8c3e595c581ac1c8753ab53b3b1252c0",
+    "o0_ctx.npy": "30c0c0f336e69b86ee3da30f0f4ce1d9a138d503845c586e993ff31e8003fee1",
+    "o0_lam.npy": "cd9a47285395b24b1cb25eb99418ce5dc38b8face7477d4b7177a77f9261303f",
+    "o1_a.npy": "06cae91a55897a4ca94f06b3486c7883054a5d45939691415e243c78e8c8a141",
+    "o1_clave.npy": "d5be6db4d44c819af652ca922bc92458c0936bae4583b70b1cb451fee34b554e",
+    "o1_ctx.npy": "bb2cd97874618bd9cb2f7a6dbb7fa7a69471b22fb977623c395428ef7aa894ef",
+    "o1_lam.npy": "62e6015df011d4340a332ca903864db1f8bb5f48351a94b2def6c15d9c0d769c",
+    "o2_a.npy": "2253ae22c3d67875db7eb5dcf3d9ea2e08f312967512562c4035b87591a7786d",
+    "o2_clave.npy": "6c09fd66d10556313084dc122f2896b48698adf5dc3c2cac217d6f63d0f091ba",
+    "o2_ctx.npy": "3567253b687da0e6397db5b12a52265b452e52d0f00685eb72c9531f1f79773d",
+    "o2_lam.npy": "f78f5b75f1fe4f341501b26c1874423e0917f004d83fc3ce98ed4ca3fa9574a3",
+    "o3_a.npy": "cac48c2a03c77f92240cb9c91e8e828c7eec381bee2f1c3de030220d61882d65",
+    "o3_clave.npy": "6f679d823c07dfaf48c12cd5047fe3c19d940812aef5c57a86cdcdc2d0c66815",
+    "o3_ctx.npy": "8f77f8470553d344b3625cbfc4f874549be9e228d74a4fbd3e7c50c7ced5f64c",
+    "o3_lam.npy": "3696c703a6241a1705bf1942184705b48c51d470b579125e63f18264d1d97a4c",
+    "o4_a.npy": "e724d059c98860d91aa1d820e2cad497946a53cbc3fb83d61c2963bbb891e3b3",
+    "o4_clave.npy": "5ba0228e23375b4617d4a0b04451b0995bf24487e76b045d74fd19690b2a8e15",
+    "o4_ctx.npy": "d26dbe7baf9a81c418264a0b908bf688b6c9968f291cecdf1882ccb4ac5b690a",
+    "o4_lam.npy": "444b12ad09a3b68c7de6f7223a73de009b636dfbda4e064adb160391c972f7dd",
+    "o5_a.npy": "29307349f40beb47637bc7e6f8794b20c1249763c33778a131c1415905d1b719",
+    "o5_clave.npy": "d8661a8f1ed96c100be9cd54173318d0b541a60fe37f4ab70a9d9221ae71f9df",
+    "o5_ctx.npy": "496dc5e7aac35d53c01bde6c363fc88132030f5687133880e6df2fd67a8291a4",
+    "o5_lam.npy": "232b424e1daea4c923a5337085bfb5008a47803befef4c05e3d1845812d9e828",
+    "o6_a.npy": "5fc18f96be695e8eb93c1d4175f84cd4a9776fc0f5f32a2be437309f10847073",
+    "o6_clave.npy": "339ad36a298e02c1dcc9dd29aae418c235bd09c9c58b8f8c15bba2351614b1e6",
+    "o6_ctx.npy": "c09a86fdfdf201b961107bed79c5bc0ef180ac33c1acda50b526425fdc588614",
+    "o6_lam.npy": "1bec6f041a32bf3ddb9bcf32f228ea34b0f6bbdfc59ccda1c9b668ef824f5d6e",
+    "o7_a.npy": "aa23d6c509f33dc0af5e495d3bfc7dfce81336638b7d76d68abd2d3290a8d1cc",
+    "o7_clave.npy": "67b50f1f1a66c088046a3421a03117d8a3ff21d34063666dc9900659d72ef7c4",
+    "o7_ctx.npy": "a30c080195c9e77fcde2f29a4c425b665e2254f707d13d8ec70b1ee9a8c52c39",
+    "o7_lam.npy": "f9d3320938ecef2d3febea82bb353d62b51443454382279a4a66185026dcea60"
+   }
+  },
+  "uvdoc": {
+   "descripcion": "UVDoc (MIT, 8 M): aplanado de fotos de documentos curvados o en perspectiva (--aplanar)",
+   "carpeta": "amanuensis-uvdoc-1",
+   "ficheros": {
+    "LICENSE-UVDoc.txt": 1069,
+    "uvdoc.onnx": 32027642
+   },
+   "oculto": true,
+   "licencia": "MIT (UVDoc, Tanguy Magne y otros; github.com/tanguymagne/UVDoc); se distribuye con su LICENSE-UVDoc.txt",
+   "sha256": {
+    "LICENSE-UVDoc.txt": "cf80bdbde76b47756c7fa62b56854ae54902979016bb08a6ba2edbebf93e9b90",
+    "uvdoc.onnx": "26c1a2b6b76773e8ad67311f47308eb6b16ebaa8c89ad5d8b133fe6db7a77245"
+   }
+  },
+  "prensa-lm-ligero": {
+   "descripcion": "Modelo de lengua de caracteres podado (n-grama orden 7 con corte 5, 8 MB) para el haz de Ligero y Mínimo en modo prensa",
+   "carpeta": "amanuensis-prensa-lm-n5p-1",
+   "ficheros": {
+    "meta.json": 1095,
+    "o0_a.npy": 402,
+    "o0_clave.npy": 1224,
+    "o0_ctx.npy": 136,
+    "o0_lam.npy": 130,
+    "o1_a.npy": 11116,
+    "o1_clave.npy": 44080,
+    "o1_ctx.npy": 1224,
+    "o1_lam.npy": 402,
+    "o2_a.npy": 102388,
+    "o2_clave.npy": 409168,
+    "o2_ctx.npy": 43184,
+    "o2_lam.npy": 10892,
+    "o3_a.npy": 191770,
+    "o3_clave.npy": 766696,
+    "o3_ctx.npy": 394592,
+    "o3_lam.npy": 98744,
+    "o4_a.npy": 741720,
+    "o4_clave.npy": 2966496,
+    "o4_ctx.npy": 1760728,
+    "o4_lam.npy": 440278
+   },
+   "oculto": true,
+   "licencia": "entrenado con texto de prensa histórica GRESEL (UNED) y Wikisource (CC BY-SA); solo pesos; uso no comercial",
+   "sha256": {
+    "meta.json": "7c48e8a5b07e2d6d3e62a71a3169e21a34511059cadb139e35adf303d0b586eb",
+    "o0_a.npy": "0b63b2570b5819125bed4d6f32c94b809882618bba1ebde0d07cba4050f57e59",
+    "o0_clave.npy": "043ede6904273cb59710aeb0e8ca535c8c3e595c581ac1c8753ab53b3b1252c0",
+    "o0_ctx.npy": "30c0c0f336e69b86ee3da30f0f4ce1d9a138d503845c586e993ff31e8003fee1",
+    "o0_lam.npy": "d7cb7e2335059036ce0b238377f400bf66668f6505705769bd4e86ecf3cb7ea3",
+    "o1_a.npy": "9f2e7b95d0a36b399fa09cf82e718b69d21ca6830ce5409d0303bf3a3a342a9b",
+    "o1_clave.npy": "d5be6db4d44c819af652ca922bc92458c0936bae4583b70b1cb451fee34b554e",
+    "o1_ctx.npy": "bb2cd97874618bd9cb2f7a6dbb7fa7a69471b22fb977623c395428ef7aa894ef",
+    "o1_lam.npy": "c9a3f9f7d40c8415b558222b7704e58471a06e383593c501f8919300769a591f",
+    "o2_a.npy": "6eb19670713ec22c218401ad08d542e25a719904e05882aa5c8b9c1147fb3f96",
+    "o2_clave.npy": "6c09fd66d10556313084dc122f2896b48698adf5dc3c2cac217d6f63d0f091ba",
+    "o2_ctx.npy": "3567253b687da0e6397db5b12a52265b452e52d0f00685eb72c9531f1f79773d",
+    "o2_lam.npy": "09dc0bd70a6ca650cedcb96bfe7469c5d0e043425cee82c734f5ab8c308e7b09",
+    "o3_a.npy": "1f713a805628bea0b3dc3fb954eabfd189d22e2b3c77f3f7e4937a6b9e946595",
+    "o3_clave.npy": "179063f603a69e44222d999e5ab7ad95d07045389c3b65111d27dc54d407fe40",
+    "o3_ctx.npy": "39bb6d963ef008a84ea4e809d0c43650fc3188652070ae5949f9bbef50d2898e",
+    "o3_lam.npy": "7ac57f9da1c5fb5c7a123eef6f213d2ecd0e9dcc8db0b0a1137c7e793b310975",
+    "o4_a.npy": "b8ffd4831e85d31120fe011aee78db0a43612f92ded8c4b8cc61f7f38f3456b0",
+    "o4_clave.npy": "9991ffef2942d16adbc9f67df9dd8227d7ed144ee2ab330f80eca9a59a0129f8",
+    "o4_ctx.npy": "ca2748cb544b3e70c646750bd9c8460b06c5409deaad13895f6e9bf761abbd8e",
+    "o4_lam.npy": "46f522f3bb73679a231093fe89c7fef929b84f7f6ee4f6e1125129c1dfed6ce5"
+   }
+  },
+  "articulos-red": {
+   "descripcion": "Cabeza de artículos aprendida para el modo prensa (--articulos red): visión EG2 hasta la capa 12, EmbeddingGemma 2 de texto, LM de caracteres y cabeza por pares (~960 MB; necesita tokenizers)",
+   "carpeta": "amanuensis-articulos-red-1",
+   "ficheros": {
+    "articulos.json": 315,
+    "cabeza.onnx": 1226599,
+    "cod_art_q8.onnx": 132871682,
+    "lm.json": 3778,
+    "lm_fp32.onnx": 44353659,
+    "texto/texto_q8.onnx": {
+     "bytes": 692213211,
+     "partes": 3
+    },
+    "texto/tokenizer.json": 32170510,
+    "texto/tokenizer_config.json": 1600
+   },
+   "oculto": true,
+   "licencia": "visión: EG2 (términos de Gemma); texto: EmbeddingGemma 2 (términos de Gemma, ai.google.dev/gemma/terms); cabeza y LM: entrenados con prensa histórica GRESEL (UNED), solo pesos; uso no comercial",
+   "sha256": {
+    "articulos.json": "7eb9d4eb5c5d07802066faebeb722f375be1d1ff289b41f7df4fa7360b1b3fc3",
+    "cabeza.onnx": "f071aa39b17474bf8e12a82f99a3178dfa3ce0e57f60c89df3e750751a06e213",
+    "cod_art_q8.onnx": "e80b909968d18fb368140fdac28d265c21a5fc558f18a3decc085496fb8e4285",
+    "lm.json": "a635a28ba4dade30057e9fd2aec7785fec566d8c7d951a3c9805cc2ca8043dfe",
+    "lm_fp32.onnx": "836f7a3eb2d0c8cb8ede9cc76e02d921d490da7330e7de6d8dfd19c009592ee1",
+    "texto/texto_q8.onnx": "3f8a63366cf768c4ebce0e58924e98be9b3468b8e759f65b7670481d782d7a39",
+    "texto/tokenizer.json": "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4",
+    "texto/tokenizer_config.json": "fd4bc42eca490af2f3ab7e1e22cdef97a8c5a2354146d5700d5d55ecf70f1de5",
+    "coreml/cod_art.zip": "e42a15a86e22ff46302d4346af746c3269a09c5e2ede828dae53740dc4cc21bd"
+   },
+   "opcional": {
+    "ficheros": {
+     "coreml/cod_art.zip": {
+      "bytes": 227174734,
+      "partes": 1
+     }
+    },
+    "zip": {
+     "cod_art": "coreml/cod_art.zip"
+    },
+    "cuando": "coreml"
+   }
+  },
+  "lm-neuronal": {
+   "descripcion": "LM neuronal de caracteres (GPT pequeño condicionado por el renglón anterior, 42 MB, ONNX) como puerta del haz de prensa (decod_prensa_lmn_epoca de «lengua»)",
+   "carpeta": "amanuensis-lm-neuronal-1",
+   "ficheros": {
+    "lm.json": 3778,
+    "lm_fp32.onnx": 44353659
+   },
+   "oculto": true,
+   "licencia": "entrenado con texto de prensa histórica GRESEL (UNED) y Wikisource (CC BY-SA); solo pesos; uso no comercial",
+   "sha256": {
+    "lm.json": "a635a28ba4dade30057e9fd2aec7785fec566d8c7d951a3c9805cc2ca8043dfe",
+    "lm_fp32.onnx": "836f7a3eb2d0c8cb8ede9cc76e02d921d490da7330e7de6d8dfd19c009592ee1"
+   }
   }
  },
  "alias": {

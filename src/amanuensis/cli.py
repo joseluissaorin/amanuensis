@@ -128,6 +128,61 @@ def lexicos(argv):
     return 0
 
 
+def _reiniciar_si_pesa(m, a, argv, restantes, fallos):
+    """Con Core ML, la memoria de un proceso largo crece página a página aunque se suelten las funciones (la caché de
+    Core ML y de la GPU no se devuelve). Si pasa de AMANUENSIS_COREML_REINICIO_GB (3,0 por defecto) y quedan ficheros,
+    el proceso se relanza con los que faltan (tandas automáticas): cada fichero ya salió y la carga del modelo cuesta
+    pocos segundos."""
+    if not restantes:
+        return
+    cmp = getattr(m, "_completo", None)
+    if cmp is None and getattr(m, "_sub_prensa", None) is not None:  # --prensa auto con Ligero: el modelo completo vive en el Motor secundario
+        cmp = getattr(m._sub_prensa, "_completo", None)
+    from . import completo_coreml as CM
+
+    con_cm = cmp is not None and getattr(cmp, "con_coreml", False)
+    # Core ML: 3,0 GB; CPU (ONNX): 3,5 GB (la memoria también crece con los lotes largos: 5,6 GB en 12 páginas)
+    lim = float(os.environ.get("AMANUENSIS_COREML_REINICIO_GB" if con_cm else "AMANUENSIS_REINICIO_GB", "3.2" if con_cm else "3.5"))
+    if CM.huella_gb() <= lim:
+        return
+    m.log(f"  memoria {CM.huella_gb():.1f} GB: se relanza el proceso con los {len(restantes)} ficheros que faltan")
+    argv = list(sys.argv[1:] if argv is None else argv)
+    for e in a.entradas:
+        if e in argv:
+            argv.remove(e)
+    os.environ["AMANUENSIS_FALLOS_PREVIOS"] = str(fallos)
+    os.execv(sys.executable, [sys.executable, "-m", "amanuensis", *argv, *restantes])
+
+
+def _en_paralelo(a, argv, lista):
+    """--procesos N: reparte los ficheros (alternados, para mezclar tamaños) entre N procesos hijos con la misma orden."""
+    import subprocess
+
+    n = min(a.procesos, len(lista))
+    resto = list(argv)
+    for e in a.entradas:
+        while e in resto:
+            resto.remove(e)
+    limpio, saltar = [], False
+    for x in resto:  # fuera --procesos y --hilos (se reparten aquí)
+        if saltar:
+            saltar = False
+            continue
+        if x in ("--procesos", "--hilos"):
+            saltar = True
+            continue
+        if x.startswith(("--procesos=", "--hilos=")):
+            continue
+        limpio.append(x)
+    total = a.hilos or os.cpu_count() or 4
+    h = max(1, total // n)
+    env = dict(os.environ, AMANUENSIS_PROCESOS="1", OMP_NUM_THREADS=str(h))
+    hijos = [subprocess.Popen([sys.executable, "-m", "amanuensis", *limpio, "--hilos", str(h), *lista[k::n]], env=env)
+             for k in range(n)]
+    codigos = [p.wait() for p in hijos]
+    return max(codigos) if codigos else 0
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "escucha":
@@ -149,12 +204,32 @@ def main(argv=None):
                          "completo = amanuensis, minimo = ligero --rapido; para expertos: historico, multilingue, impreso")
     ap.add_argument("-r", "--rapido", action="store_true", help="Amanuensis Ligero en modo rápido: detector y lector Mínimos (CPU, ~0,1 s por página)")
     ap.add_argument("--maqueta", default="auto", choices=["auto", "si", "no"], help="maquetación completa del proyecto (zonas, líneas con base, orden)")
-    ap.add_argument("--pulido", default="si", choices=["si", "no"],
+    ap.add_argument("--pulido", default="auto", choices=["auto", "si", "no"],
                     help="pulir la página tras leerla: cabeceras, folios, epígrafes, series, diacríticos imposibles")
     ap.add_argument("--lexico", default="auto", choices=["auto", "local", "no"],
                     help="corrección léxica guiada por la CTC con las lenguas detectadas (auto: construye los léxicos "
                          "que falten; local: solo los que haya)")
-    ap.add_argument("--rectificar", default="si", choices=["si", "no"], help="releer enderezados los renglones curvos")
+    ap.add_argument("--rectificar", default="auto", choices=["auto", "si", "no"], help="releer enderezados los renglones curvos (auto: solo con el modelo completo; en Ligero y Mínimo empeora el impreso moderno)")
+    ap.add_argument("--prensa", default="auto", choices=["auto", "si", "no"],
+                    help="prensa a varias columnas: renglones dobles releídos, cortes por el canal y orden por columnas "
+                         "(auto: páginas con tres columnas o más)")
+    ap.add_argument("--articulos", default="reglas", choices=["reglas", "red"],
+                    help="agrupación en artículos en modo prensa: reglas (por defecto) o red (cabeza aprendida: B-cubed 88 frente a 80; ~960 MB, 6,6 s/pág. "
+                         "en CPU y la dependencia opcional `tokenizers`)")
+    ap.add_argument("--aplanar", default="no", choices=["no", "auto", "si"],
+                    help="FOTOS de documentos curvados o en perspectiva: aplanar con UVDoc antes de leer (auto: solo si el selector "
+                         "lo pide; necesita opencv). No para escaneos: en val de GRESEL el selector salta en 7 de 90")
+    ap.add_argument("--haz", default="auto", choices=["auto", "si", "no"],
+                    help="modo prensa: haz con modelo de lengua de caracteres en los renglones dudosos, sin tocar tildes ni "
+                         "mayúsculas (solo con --prensa si; auto: el valor por defecto medido)")
+    ap.add_argument("--lector", default=None, choices=["dots", "auto"],
+                    help="lector alternativo (opcional): dots = dots.ocr de página entera por un servidor con API de OpenAI; "
+                         "auto = Amanuensis y, solo en las páginas muy dudosas, dots.ocr (necesita --servidor; en prensa lee mejor que Amanuensis pero no cabe en un Mac)")
+    ap.add_argument("--dots-dudas", type=float, default=0.03, metavar="F",
+                    help="con --lector auto: fracción de letras con p < 0,5 a partir de la cual la página va a dots.ocr (0,03: "
+                         "3 de 90 páginas de val100, con CER medio 30 frente a 13)")
+    ap.add_argument("--servidor", default=None, metavar="URL",
+                    help="URL base del servidor de dots.ocr, p. ej. http://host:8000/v1 (también AMANUENSIS_DOTS_URL)")
     ap.add_argument("--fiel", action="store_true",
                     help="md, txt y html página a página, con folios, cabeceras y marcas de página (por defecto se quitan "
                          "y se unen los párrafos y las palabras partidas entre páginas)")
@@ -172,6 +247,9 @@ def main(argv=None):
                     help="estructura rica con el modelo grande: entradas de diccionario o viñetas de cómic (auto: detección aún floja)")
     ap.add_argument("--dispositivo", default="auto", choices=["auto", "cpu", "gpu"])
     ap.add_argument("--hilos", type=int, default=0)
+    ap.add_argument("--procesos", type=int, default=int(os.environ.get("AMANUENSIS_PROCESOS", "1") or 1),
+                    help="lotes de ficheros (con -o): N procesos en paralelo, cada uno con su parte de los ficheros; con una GPU "
+                         "grande, 6-12 la llenan (en una L40S, de 0,12 a más de 1 página/s); --hilos se reparte entre ellos")
     ap.add_argument("-q", "--silencio", action="store_true")
     ap.add_argument("--version", action="version", version=f"amanuensis {__version__}")
     a = ap.parse_args(argv)
@@ -182,19 +260,32 @@ def main(argv=None):
     for f in fs:
         if f not in FORMATOS:
             ap.error(f"formato desconocido: {f}")
-    from .motor import Motor
-
     if not 0 <= a.arrojo <= 1:
         ap.error("--arrojo va de 0 a 1")
+    if a.procesos > 1 and a.salida:
+        lista = [str(q) for q in entradas(a.entradas, EXT_DOC)]
+        if len(lista) > 1:
+            return _en_paralelo(a, argv, lista)
+    from .motor import Motor
+
     m = Motor(a.modelo, a.maqueta, a.modo, a.dpi, a.dispositivo, a.hilos, not a.silencio, a.rapido, a.imagenes,
               {"auto": None, "si": True, "no": False}[a.enderezar], arrojo=a.arrojo, estructura=a.estructura, umbral_duda=a.dudas,
-              pulido=a.pulido == "si", lexico=a.lexico, rectificar=a.rectificar == "si")
+              pulido={"auto": "auto", "si": True, "no": False}[a.pulido], lexico=a.lexico, rectificar={"auto": "auto", "si": True, "no": False}[a.rectificar], prensa=a.prensa, lector=a.lector, servidor=a.servidor, haz=a.haz, dots_dudas=a.dots_dudas, aplanar=a.aplanar, articulos=a.articulos)
     lista = list(entradas(a.entradas, EXT_DOC))
-    fallos = 0
-    for p in lista:
+    fallos = int(os.environ.get("AMANUENSIS_FALLOS_PREVIOS", "0"))
+    for k, p in enumerate(lista):
         try:
             t0 = time.time()
-            d = m.leer(str(p), a.paginas)
+            try:
+                d = m.leer(str(p), a.paginas)
+            except Exception as e:  # noqa: BLE001 (varios procesos en una GPU: si faltó memoria, se repite una vez)
+                from .gpu import es_falta_de_memoria
+
+                if not es_falta_de_memoria(e):
+                    raise
+                m.log(f"  {p}: faltó memoria de la GPU; se repite")
+                time.sleep(3)
+                d = m.leer(str(p), a.paginas)
             d.fiel = a.fiel
             m.log(f"  {len(d.paginas)} páginas en {time.time() - t0:.1f} s")
             for f in fs:
@@ -215,6 +306,7 @@ def main(argv=None):
         except Exception as e:  # sigue con los demás ficheros
             fallos += 1
             print(f"{p}: {type(e).__name__}: {e}", file=sys.stderr)
+        _reiniciar_si_pesa(m, a, argv, [str(q) for q in lista[k + 1:]], fallos)
     sys.exit(1 if fallos else 0)
 
 

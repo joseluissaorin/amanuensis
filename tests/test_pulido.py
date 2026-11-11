@@ -225,7 +225,9 @@ def test_las_opciones_del_motor():
     from amanuensis.motor import Motor
     m = Motor("ligero", verbose=False, pulido=False, lexico="no", rectificar=False)
     assert (m.pulido, m.lexico, m.rectificar) == (False, "no", False)
-    m = Motor("ligero", verbose=False)
+    m = Motor("ligero", verbose=False)  # Ligero y Mínimo: pulido y rectificado en «auto» = apagados (examen, 11-11)
+    assert (m.pulido, m.lexico, m.rectificar) == (False, "auto", False)
+    m = Motor("ligero", verbose=False, pulido=True, rectificar=True)
     assert (m.pulido, m.lexico, m.rectificar) == (True, "auto", True)
 
 

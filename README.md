@@ -76,7 +76,7 @@ Detalle en el informe técnico.
 - **Estructura rica** (`--estructura diccionario|comic`): entradas de diccionario en TEI `<entry>`/`<form>`/
   `<gramGrp>`/`<sense>` y viñetas de cómic en `<div type="panel">`, también en Markdown y JSON.
 - **Voz**: audio o vídeo a **texto, SRT, VTT o JSON** con el inicio y el fin de cada palabra, en 40 lenguas, con
-  mayúsculas y puntuación y, si quieres, un modelo de lengua por idioma (`pip install "amanuensis[voz-lm]"`).
+  mayúsculas y puntuación y, si quieres, un modelo de lengua por idioma (`pip install "amanuensis[voz-lm] @ git+https://github.com/joseluissaorin/amanuensis"`).
 - **Orden de lectura aprendido** (un perceptrón diminuto por pares de líneas, 27 KB) y **páginas derechas**:
   corrige la inclinación y los giros de 90, 180 y 270 grados de escaneos y fotos.
 - **Local**: nada sale de tu máquina. Los pesos (de 4 MB a 350 MB) se descargan solos la primera vez.
@@ -138,6 +138,17 @@ amanu lexicos construir es pt      # construirlos antes (por ejemplo, al instala
 amanu lexicos construir --todas    # los 31 (unos 330 MB)
 ```
 
+## Novedades de la 1.2.0: prensa, fotos y velocidad
+
+- **Prensa histórica** (`--prensa si`): en la prueba de GRESEL (88 páginas de la prensa de la UNED que no entraron en ningún entrenamiento) la CER
+  de página baja de 15,95 (1.1.1) a **8,00**; con `-m ligero --prensa si`, 8,44. Artículos en el JSON, Markdown y TEI; `--articulos red`
+  los agrupa con una cabeza aprendida (B-cubed 88,1; dots.ocr 88,2, Chandra 2 91,2, midiendo contra una verdad *plata* de Gemini).
+- **Fotos de documentos** (`--aplanar auto`, UVDoc con licencia MIT): banco de 16 fotos reales, CER 33,3 → **26,4**.
+- **Velocidad**: en una L40S, ~1 s por página con varios procesos (0,97 págs./s frente a 0,28 de Chandra 2 y 0,17 de dots.ocr; ~0,23 $ por
+  1000 páginas); en el Mac, Core ML para el codificador de página y el lector de prensa.
+- Los pesos nuevos están entrenados con el corpus de prensa histórica GRESEL (UNED): **se publican solo los pesos, nunca el corpus, sus
+  imágenes ni sus anotaciones**; uso no comercial, como el resto del modelo grande. Detalle en `CHANGELOG.md` y `MODEL_CARD.md`.
+
 ## Instalar
 
 ```bash
@@ -146,10 +157,10 @@ pipx install git+https://github.com/joseluissaorin/amanuensis       # o con pipx
 pip install git+https://github.com/joseluissaorin/amanuensis        # o en tu entorno
 ```
 
-Python 3.10 o más. Sin PyTorch: solo ONNX Runtime. Con GPU de NVIDIA (CUDA 12): `pip install "amanuensis[gpu]"`
-(onnxruntime-gpu anterior a la 1.23 y las bibliotecas de CUDA 12 de pip; las versiones nuevas de onnxruntime-gpu piden
+Python 3.10 o más. Sin PyTorch: solo ONNX Runtime. Con GPU de NVIDIA (CUDA 12): `pip install "amanuensis[gpu] @ git+https://github.com/joseluissaorin/amanuensis"`
+(onnxruntime-gpu anterior a la 1.23 y las bibliotecas de CUDA 12 de pip; en una GPU con varios procesos, `--procesos N`; las versiones nuevas de onnxruntime-gpu piden
 CUDA 13 y, si no lo encuentran, se quedan en la CPU sin avisar). Para audio que no sea WAV hace falta `ffmpeg`.
-Órdenes equivalentes: `amanuensis`, `amanu` y `eg2ocr` (el nombre antiguo).
+Artículos con la cabeza aprendida (`--articulos red`): `pip install "amanuensis[articulos] @ git+https://github.com/joseluissaorin/amanuensis"` (añade `tokenizers`). Órdenes equivalentes: `amanuensis`, `amanu` y `eg2ocr` (el nombre antiguo).
 
 ## Usar
 
@@ -174,7 +185,7 @@ amanu visor                                   # visor local en http://127.0.0.1:
 Modelos (`-m`): `auto` (por defecto: una sonda de 0,5 s deja en Ligero el impreso moderno latino de una columna y
 manda lo demás a Amanuensis), `amanuensis`, `ligero` (con `-r`, modo rápido). Siguen valiendo los nombres antiguos:
 `completo` = `amanuensis`, `minimo` = `ligero -r`. Para expertos: `historico`, `multilingue`, `impreso`. En el Mac,
-Amanuensis usa Core ML (GPU) si está `coremltools` (`pip install "amanuensis[coreml]"`).
+Amanuensis usa Core ML (GPU) si está `coremltools` (`pip install "amanuensis[coreml] @ git+https://github.com/joseluissaorin/amanuensis"`).
 
 Desde Python:
 

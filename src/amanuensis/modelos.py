@@ -81,7 +81,17 @@ def disponible(nombre: str) -> bool:
     return not m.get("pendiente")
 
 
-def _bajar(url: str, destino: Path, tam: int):
+def _sha256(ruta: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(ruta, "rb") as f:
+        for b in iter(lambda: f.read(1 << 22), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def _bajar(url: str, destino: Path, tam: int, sha: str | None = None):
     tmp = destino.with_suffix(destino.suffix + ".parcial")
     destino.parent.mkdir(parents=True, exist_ok=True)
     req = urllib.request.Request(url, headers={"User-Agent": "amanuensis"})
@@ -105,6 +115,9 @@ def _bajar(url: str, destino: Path, tam: int):
     if tam and real != tam:
         tmp.unlink()
         raise OSError(f"{url}: tamaño inesperado ({real} en vez de {tam})")
+    if sha and _sha256(tmp) != sha:  # suma sha256 del catálogo (1.2.0): un fichero corrupto o cambiado no se instala
+        tmp.unlink()
+        raise OSError(f"{url}: la suma sha256 no coincide con la del catálogo")
     os.replace(tmp, destino)
 
 
@@ -153,11 +166,14 @@ def _bajar_ficheros(m: dict, destino: Path, base: str):
             if tmp.stat().st_size != spec["bytes"]:
                 tmp.unlink()
                 raise OSError(f"{f}: tamaño inesperado tras unir las partes")
+            if m.get("sha256", {}).get(f) and _sha256(tmp) != m["sha256"][f]:
+                tmp.unlink()
+                raise OSError(f"{f}: la suma sha256 no coincide con la del catálogo")
             os.replace(tmp, destino / f)
             for p in partes:
                 p.unlink()
         else:
-            _bajar(f"{base}/{m['carpeta']}/{f}", destino / f, spec)
+            _bajar(f"{base}/{m['carpeta']}/{f}", destino / f, spec, m.get("sha256", {}).get(f))
 
 
 def _opcionales(m: dict, destino: Path, base: str):

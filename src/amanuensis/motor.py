@@ -152,10 +152,13 @@ def proveedores(dispositivo: str):
             except Exception:
                 pass
         gb = entorno("GPU_MEM_GB")  # tope de memoria de la GPU por proceso (para varios procesos en una GPU)
+        op = {"arena_extend_strategy": "kSameAsRequested"}  # con la arena encogida tras cada ejecución (gpu.SesionGPU)
+        tf = entorno("GPU_TF32")  # TF32 en MatMul y convoluciones de CUDA (por defecto el de onnxruntime); 0 = fp32 de verdad
+        if tf in ("0", "1"):
+            op["use_tf32"] = tf
         if gb:
-            return [("CUDAExecutionProvider", {"gpu_mem_limit": int(float(gb) * 2**30), "arena_extend_strategy": "kSameAsRequested"}),
-                    "CPUExecutionProvider"]
-        return ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            op["gpu_mem_limit"] = int(float(gb) * 2**30)
+        return [("CUDAExecutionProvider", op), "CPUExecutionProvider"]
 
 
 def con_cuda(prov) -> bool:
@@ -163,10 +166,14 @@ def con_cuda(prov) -> bool:
     return ["CPUExecutionProvider"]
 
 
+HAZ_LMN_POR_DEFECTO = False  # puerta del LM neuronal del haz del modelo completo: se activa si la medida de punta a punta lo avala (NOTAS §25)
+HAZ_POR_DEFECTO = True  # medido en Vast, validación de GRESEL (90 págs.): CER 9,59 -> 9,53, WER 14,66 -> 14,31, renglón 1,15 -> 1,09 (medida limpia, ver NOTAS §7); +5 % de tiempo
+
+
 class Motor:
     def __init__(self, modelo="auto", maqueta="auto", modo="auto", dpi=200, dispositivo="auto", hilos=0, verbose=True, rapido=False,
                  imagenes="auto", enderezar=None, arrojo=0.5, estructura="no", umbral_duda=None,
-                 pulido=True, lexico="auto", rectificar=True):
+                 pulido="auto", lexico="auto", rectificar="auto", prensa="auto", lector=None, servidor=None, haz="auto", dots_dudas=0.03, aplanar="no", articulos="reglas"):
         from .lector import sesgo_blanco
         from .salidas import UMBRAL_DUDA
 
@@ -181,15 +188,37 @@ class Motor:
         # detectadas, construidos la primera vez si faltan; «local» = solo los que ya estén; «no») y renglones
         # torcidos enderezados (rectificado.py). Las variables AMANUENSIS_PULIDO, AMANUENSIS_LEXICOS y
         # AMANUENSIS_RECTIFICAR=0 los apagan también.
+        if pulido == "auto":
+            pulido = modelo not in ("ligero", "minimo") and not rapido
         self.pulido = bool(pulido) and os.environ.get("AMANUENSIS_PULIDO") != "0"
         self.lexico = "no" if os.environ.get("AMANUENSIS_LEXICOS") == "no" else (os.environ.get("AMANUENSIS_LEXICOS") or lexico)
         if self.lexico is False:
             self.lexico = "no"
+        # rectificar: «auto» = solo con el modelo completo; en Ligero y Mínimo empeora las páginas de impreso moderno (examen, 11-11: 12,97 -> 13,49)
+        if rectificar == "auto":
+            rectificar = modelo not in ("ligero", "minimo") and not rapido
         self.rectificar = bool(rectificar) and os.environ.get("AMANUENSIS_RECTIFICAR", "1") != "0"
+        # prensa a varias columnas (prensa.py): «auto» = páginas con tres columnas o más; AMANUENSIS_PRENSA lo fuerza
+        self.prensa = os.environ.get("AMANUENSIS_PRENSA") or prensa
         self.arrojo, self.sesgo = float(arrojo), sesgo_blanco(arrojo)
         self.estructura = estructura
         self.umbral_duda = UMBRAL_DUDA if umbral_duda is None else float(umbral_duda)
         self._completo = None
+        # lector opcional de página entera: dots.ocr por un servidor de API OpenAI (dots.py); no es el camino por defecto
+        self.dots, self.dots_auto, self.dots_dudas = None, (lector or "").lower() == "auto", float(dots_dudas)
+        if (lector or "").lower() in ("dots", "auto") or servidor:
+            from . import dots as D
+
+            self.dots = D.desde_entorno(servidor)
+            if self.dots is None:
+                raise SystemExit("--lector dots necesita --servidor URL (o AMANUENSIS_DOTS_URL), p. ej. http://host:8000/v1")
+            self.dots.comprobar()
+        # haz con modelo de lengua en el modo prensa (haz_lm.py): «auto» = como decida AMANUENSIS_HAZ o el valor por defecto
+        # medido (HAZ_POR_DEFECTO), «si», «no»; solo con --prensa si (la página se lee ya sabiendo que es prensa)
+        self.haz = os.environ.get("AMANUENSIS_HAZ") or haz
+        self._haz_clasico_prensa = False
+        self.articulos, self._art_red = articulos, None  # --articulos reglas|red (articulos_red.py: opcional, ~960 MB, 6,6 s/pág.)
+        self.aplanar, self._aplanador = aplanar, None  # --aplanar auto|si|no: UVDoc en FOTOS (aplanar.py), antes del detector
         self.rapido = rapido
         # enderezar (inclinación y giro de la página): por defecto sí, salvo en el modo rápido (cuesta ~0,1 s/pág.)
         self.enderezar = (not rapido) if enderezar is None else enderezar
@@ -202,6 +231,11 @@ class Motor:
         self._lectores, self._det = {}, None
         # modelo completo (maquetación v4 y lector grande, ONNX/Core ML): «auto» y «completo»
         self.con_completo = (modelo in ("auto", "completo") and not rapido and maqueta != "no" and _hay("completo"))
+        # «Ligero prensa»: -m ligero --prensa si con la maquetación del modelo completo (renglones i50, orden v5p, Core ML) y el lector de Ligero
+        self.ligero_prensa = bool(modelo == "ligero" and self.prensa in ("si", "1") and not rapido and maqueta != "no" and _hay("completo")
+                                  and modelos.disponible("ligero") and os.environ.get("AMANUENSIS_LIGERO_PRENSA", "1") != "0")
+        if self.ligero_prensa:
+            self.con_completo, self.modelo = True, "completo"
         if modelo == "completo" and not self.con_completo:
             raise SystemExit("el modelo Amanuensis no está disponible (aún sin publicar: AMANUENSIS_REPO o AMANUENSIS_MODELOS)")
         # maquetación antigua del repositorio (mq_v3 por PyTorch): solo si no hay modelo completo
@@ -211,6 +245,29 @@ class Motor:
             raise SystemExit("--maqueta si necesita el modelo Amanuensis o el repositorio eg2-ocr (AMANUENSIS_REPO)")
         # extracción de imágenes: necesita las zonas de una maquetación
         self.imagenes = (self.repo is not None or self.con_completo) and imagenes != "no"
+        # Ligero y Mínimo en modo prensa: haz con el LM podado (lector.voraz); por defecto sí con --prensa si
+        from . import lector as _LEC
+
+        _LEC.HAZ_CLASICO = None
+        if self.prensa in ("si", "1") and modelo in ("ligero", "minimo") and self.haz in ("auto", "si") and (self.haz == "si" or (HAZ_POR_DEFECTO and modelo == "ligero")):
+            # por defecto solo en Ligero: en Mínimo (el modo rápido) cuesta +50 % de tiempo por 0,1 de CER; allí, con --haz si
+            try:
+                ruta = entorno("RUTA_PRENSA_LM_LIGERO") or (modelos.ruta("prensa-lm-ligero") if modelos.disponible("prensa-lm-ligero") else None)
+            except Exception:  # noqa: BLE001
+                ruta = None
+            if ruta:
+                from . import haz_lm
+
+                _LEC.HAZ_CLASICO = haz_lm.Decodificador(ruta, **haz_lm.AJUSTE_CLASICO)
+                self._haz_clasico_prensa = True
+            elif self.haz == "si":
+                raise SystemExit("--haz si: falta el modelo de lengua podado (AMANUENSIS_RUTA_PRENSA_LM_LIGERO)")
+        self._haz_clasico = _LEC.HAZ_CLASICO
+        self._dispositivo, self._sub_prensa, self._sub_haz = dispositivo, None, None
+        # --prensa auto con Ligero: una página que sale como prensa (3 columnas o más) se relee con «Ligero prensa» (maquetación del
+        # completo + lector de Ligero + haz); el resto sigue con Ligero de siempre
+        self.ligero_auto = bool(modelo == "ligero" and self.prensa == "auto" and not rapido and maqueta != "no" and _hay("completo")
+                                and modelos.disponible("ligero") and os.environ.get("AMANUENSIS_LIGERO_PRENSA", "1") != "0")
         if imagenes == "si" and not self.imagenes:
             self.log("aviso: la extracción de imágenes necesita la maquetación del modelo Amanuensis; se omite")
 
@@ -233,7 +290,14 @@ class Motor:
 
             t0 = time.time()
             prov = self.prov if con_cuda(self.prov) else None
-            self._completo = Completo(modelos.ruta("completo"), proveedores=prov, hilos=self.hilos, arrojo=self.arrojo)
+            self._completo = Completo(modelos.ruta("completo"), proveedores=prov, hilos=self.hilos, arrojo=self.arrojo,
+                                     prensa=self.prensa in ("si", "1"))
+            if getattr(self, "ligero_prensa", False):
+                from .completo_ligero import LectorLigeroEnCompleto
+
+                self._completo.lec = LectorLigeroEnCompleto(self.lector("ligero"), self._completo.lec.alto, getattr(self._completo.lec, "max_cols", 240))
+                self._completo.ml = None
+                self._completo.altos = [self._completo.lec.alto]
             self.log(f"  modelo Amanuensis cargado en {time.time() - t0:.1f} s")
         return self._completo
 
@@ -438,6 +502,14 @@ class Motor:
     def orientacion_geom() -> bool:
         return os.environ.get("AMANUENSIS_ORIENTACION", "geom") != "clasica"
 
+    def _lado_prensa(self):
+        """Ligero y Mínimo en modo prensa: la maquetación mínima a 2048 px (hoy 1024) separa mejor los renglones apretados (de maqueta,
+        11-11: Ligero en val 21,34 -> 18,70 de CER de página, +36 % de tiempo). AMANUENSIS_LADO_PRENSA=0 lo apaga."""
+        if getattr(self, "prensa", "") in ("si", "1"):
+            v = int(os.environ.get("AMANUENSIS_LADO_PRENSA", "2048"))
+            return v or None
+        return None
+
     def lineas_minima(self, img: Image.Image, cadena=None):
         """-> (imagen derecha, líneas leídas con base, polígono, tipo y zona, giro)."""
         mm = self.maqueta_minima()
@@ -455,12 +527,12 @@ class Motor:
 
         if self.enderezar and self.orientacion_geom():
             img, giro_g = self.orientar_pagina(img, lector=(cadena or [None])[0])
-            r = mm.analizar(img, orientar=False)
+            r = mm.analizar(img, orientar=False, lado=self._lado_prensa())
             r["giro"] = giro_g
         else:
             # sin enderezar (modo rápido, --enderezar no) la maqueta mínima tampoco gira la página con su clasificador
             # de orientación (giraba 90/180° páginas derechas: 18 de 324 en DEV, 26-10-2026)
-            r = mm.analizar(img, orientar=self.enderezar, puntuar=puntuar if self.enderezar else None)
+            r = mm.analizar(img, orientar=self.enderezar, puntuar=puntuar if self.enderezar else None, lado=self._lado_prensa())
         im = r["imagen"]
         g = np.asarray(im)
         rec = [mm.recorte(g, l) for l in r["lineas"]]
@@ -667,8 +739,83 @@ class Motor:
             moderno = media >= SONDA_CONF and p10 >= SONDA_P10 and flojas <= SONDA_FLOJAS
         return img, lineas, moderno, giro, incl
 
+    def _aplanar(self, color: list) -> list:
+        """Aplana con UVDoc las imágenes en color (solo fotos: no se llama para PDF). auto = solo si el selector lo pide."""
+        if self.aplanar == "no":
+            return color
+        try:
+            if self._aplanador is None:
+                from . import aplanar as AP
+
+                ruta = modelos.entorno("RUTA_UVDOC") or modelos.ruta("uvdoc")
+                self._aplanador = AP.AplanadorUVDoc(os.path.join(ruta, "uvdoc.onnx") if os.path.isdir(ruta) else ruta, hilos=self.hilos or 4)
+        except Exception as e:  # noqa: BLE001 (sin opencv o sin modelo: se lee sin aplanar)
+            self.log(f"  aviso: --aplanar no disponible ({type(e).__name__}: {e}); se lee sin aplanar")
+            self.aplanar = "no"
+            return color
+        out = []
+        for c in color:
+            rgb, info = self._aplanador(np.asarray(c.convert("RGB")), self.aplanar)
+            if info.get("aplanada"):
+                self.log(f"  aplanada con UVDoc (deformación {info['deformacion']:.4f} > {info['umbral']})")
+                c = Image.fromarray(rgb)
+            out.append(c)
+        return out
+
+    def _articulos_red(self, p: Pagina, img: Image.Image):
+        """Agrupa en artículos con la cabeza aprendida y lo deja en `p._art_red` (como renglones, que sobreviven al pulido). Sin las piezas o
+        sin `tokenizers`, avisa una vez y se quedan las reglas."""
+        from .salidas import bloques
+
+        if self._art_red is False:
+            return
+        try:
+            if self._art_red is None:
+                from .articulos_red import Articulos
+
+                ruta = modelos.entorno("RUTA_ARTICULOS_RED") or modelos.ruta("articulos-red")
+                self._art_red = Articulos(ruta, hilos=self.hilos or 4)
+            bs = bloques(p)
+            if len(bs) < 2:
+                return
+            pag = {"ancho": p.ancho, "alto": p.alto, "lineas": [{"caja": l.caja, "texto": l.texto} for l in p.lineas], "bloques": bs}
+            p._art_red = [{"lineas": [p.lineas[i] for i in a.get("lineas", []) if 0 <= i < len(p.lineas)], "titulo": a.get("titulo", ""),
+                           "confianza": a.get("confianza", 1.0)} for a in self._art_red.pagina(pag, img.convert("RGB"))]
+        except Exception as e:  # noqa: BLE001 (falta tokenizers o las piezas: reglas)
+            if self._art_red is not False:
+                self.log(f"  aviso: --articulos red no disponible ({type(e).__name__}: {e}); se usan las reglas")
+            self._art_red = False
+
+    def _preparar_haz(self):
+        """Pone el haz con LM en el lector grande si procede (una vez). -> True si está activo."""
+        if getattr(self, "_haz_listo", None) is not None:
+            return self._haz_listo
+        quiere = (self.haz == "si" or (self.haz == "auto" and HAZ_POR_DEFECTO)) and not getattr(self, "ligero_prensa", False)
+        self._haz_listo = False
+        if quiere and self.prensa in ("si", "1"):
+            ruta = modelos.entorno("RUTA_PRENSA_LM") if modelos.entorno("RUTA_PRENSA_LM") else (modelos.ruta("prensa-lm") if modelos.disponible("prensa-lm") else None)
+            if ruta is None:
+                if self.haz == "si":
+                    raise SystemExit("--haz si: falta el modelo de lengua de prensa (AMANUENSIS_RUTA_PRENSA_LM o publicarlo)")
+            else:
+                from . import haz_lm
+
+                lmn = None
+                if os.environ.get("AMANUENSIS_HAZ_LMN", "1" if HAZ_LMN_POR_DEFECTO else "0") == "1":  # puerta del LM neuronal (ONNX, 42 MB)
+                    try:
+                        rl = entorno("RUTA_LM_NEURONAL") or (modelos.ruta("lm-neuronal") if modelos.disponible("lm-neuronal") else None)
+                        lmn = haz_lm.LMNeuronalONNX(rl) if rl else None
+                    except Exception as e:  # noqa: BLE001 (sin el modelo: solo el n-grama)
+                        self.log(f"  aviso: sin la puerta del LM neuronal ({type(e).__name__}); solo n-grama")
+                aj = {"delta": float(os.environ["AMANUENSIS_HAZ_DELTA"])} if os.environ.get("AMANUENSIS_HAZ_DELTA") else {}
+                self.completo().activar_haz(haz_lm.construir(ruta, lmn=lmn, **aj))
+                self._haz_listo = True
+                self.log("  haz con modelo de lengua de prensa activado")
+        return self._haz_listo
+
     def pagina_completa(self, img: Image.Image, color: Image.Image | None = None) -> tuple:
         """Modelo completo sobre una página -> (Pagina, figuras de la maqueta en formato de figuras.py)."""
+        self._preparar_haz()
         r = self.completo().leer([img])[0]
         lineas = []
         est = r.get("estilos") or []  # por línea (cabeza tipográfica de «estructura»), si el modelo la trae
@@ -680,12 +827,75 @@ class Motor:
         p = Pagina(img.size[0], img.size[1], lineas, "ocr (Amanuensis, página entera)", nombre)
         p.zonas, p.tablas, p.lector = r.get("zonas", []), _sin_repetir(r.get("tablas", [])), r.get("lector", "")
         _lineas_en_tablas(p)
+        figs = figuras_de_zonas(p.zonas)
+        from . import prensa as PR
+
+        if self.prensa in ("si", "1") or (self.prensa == "auto" and PR.es_prensa(p)):
+            info = PR.procesar(p, img, self.completo())
+            if info:
+                p.fuente += ", prensa"
+                self.log(f"  prensa: {info.get('dobles', 0)} renglones dobles releídos, {info.get('canales', 0)} cortes por el canal, "
+                         f"{info.get('bloques', 0)} bloques de columna")
+            if info and self.articulos == "red":
+                self._articulos_red(p, img)
+            self.completo().entre_paginas()
+            return p, figs
         if not p.tablas and len(p.lineas) >= 3:
             # orden aprendido de la cadena frente al ligero, por continuidad del texto (margen 40 nats, medido sin sellado)
             p.lineas = self.reordenar(p.lineas, img.size, defecto="propio", margen=40.0, xy=False)
-        return p, figuras_de_zonas(p.zonas)
+        self.completo().entre_paginas()
+        return p, figs
 
     def ocr_paginas(self, imgs: list[Image.Image], mq=None, partir: bool = True) -> list[Pagina]:
+        dots = getattr(self, "dots", None)
+        if dots is not None and not getattr(self, "dots_auto", False):
+            return [dots.pagina(im) for im in imgs]
+        pags = self._ocr_paginas(imgs, mq, partir)
+        if getattr(self, "ligero_auto", False) and len(pags) == len(imgs):
+            from . import prensa as PR
+
+            for k, (p, im) in enumerate(zip(pags, imgs)):
+                try:
+                    if PR.es_prensa(p):
+                        pags[k] = self._leer_como_prensa(im, p)
+                except Exception as e:  # noqa: BLE001 (si falla, se queda la lectura de Ligero)
+                    self.log(f"  aviso: Ligero prensa falló ({type(e).__name__}: {e}); se conserva la lectura de Ligero")
+        if dots is not None and len(pags) == len(imgs):  # disparador de calidad: páginas muy dudosas -> dots.ocr (servidor)
+            for k, (p, im) in enumerate(zip(pags, imgs)):
+                f = self.fraccion_dudas(p)
+                if f > self.dots_dudas:
+                    self.log(f"  página dudosa ({100 * f:.1f} % de letras con p < 0,5 > {100 * self.dots_dudas:.1f} %): se lee con dots.ocr")
+                    try:
+                        pags[k] = dots.pagina(im)
+                    except Exception as e:  # noqa: BLE001 (sin servidor se queda la lectura de Amanuensis)
+                        self.log(f"  dots.ocr no responde ({type(e).__name__}); se conserva la lectura de Amanuensis")
+        return pags
+
+    def _leer_como_prensa(self, im: Image.Image, p: Pagina) -> Pagina:
+        """Relee una página de prensa con un Motor secundario en modo `--prensa si` (Ligero prensa)."""
+        from . import lector as _LEC
+
+        if self._sub_prensa is None:
+            self._sub_prensa = Motor("ligero", self.maqueta, self.modo, self.dpi, self._dispositivo, self.hilos, False, False, "no", self.enderezar,
+                                     arrojo=self.arrojo, pulido=self.pulido, lexico=self.lexico, rectificar="auto", prensa="si")
+            self._sub_haz = _LEC.HAZ_CLASICO  # lo fija el constructor del secundario: aquí se guarda y se restaura el del principal
+            _LEC.HAZ_CLASICO = self._haz_clasico
+        if not self._sub_prensa.ligero_prensa:
+            return p
+        self.log("  página de prensa: se relee con Ligero prensa")
+        _LEC.HAZ_CLASICO = self._sub_haz
+        try:
+            return self._sub_prensa.ocr_paginas([im])[0]
+        finally:
+            _LEC.HAZ_CLASICO = self._haz_clasico
+
+    @staticmethod
+    def fraccion_dudas(p) -> float:
+        """Proporción de letras leídas con probabilidad < 0,5 (calidad de la lectura, sin verdad)."""
+        n = sum(len(l.texto) for l in p.lineas if len(l.confs) == len(l.texto))
+        return sum(c < 0.5 for l in p.lineas if len(l.confs) == len(l.texto) for c in l.confs) / n if n else 0.0
+
+    def _ocr_paginas(self, imgs: list[Image.Image], mq=None, partir: bool = True) -> list[Pagina]:
         if mq is None and self.repo is not None:
             mq = self.lineas_maqueta(imgs)
         if mq is None and partir:
@@ -712,6 +922,14 @@ class Motor:
                 else:
                     p = Pagina(img.size[0], img.size[1], lineas, "ocr (sonda: impreso moderno latino)", "ligero")
                     p.figuras_mq = None
+                    from . import prensa as PR
+
+                    if self.prensa in ("si", "1") or (self.prensa == "auto" and PR.es_prensa(p)):
+                        info = PR.procesar(p, img, self.completo())
+                        if info:
+                            p.fuente += ", prensa"
+                            self.log(f"  prensa: {info.get('dobles', 0)} renglones dobles releídos, {info.get('canales', 0)} cortes por el canal, "
+                                     f"{info.get('bloques', 0)} bloques de columna")
                 if giro or incl:
                     p.fuente += (f", giro {giro}°" if giro else "") + (f", inclinación {incl}°" if incl else "")
                 p.segundos = round(time.time() - t0, 2)
@@ -861,7 +1079,7 @@ class Motor:
             color = []
             for i in range(getattr(img, "n_frames", 1)):
                 img.seek(i); color.append(img.copy().convert("RGB"))
-            color = color[: max_paginas or None]
+            color = self._aplanar(color[: max_paginas or None])
             frames = [c.convert("L") for c in color]
             mq = self.lineas_maqueta(frames) if self.repo is not None else None
             d = Documento(nombre, self.ocr_paginas(frames, mq), umbral_duda=self.umbral_duda)

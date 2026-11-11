@@ -45,7 +45,19 @@ def _sesion(ruta, hilos=0, proveedores=None):
     so.enable_cpu_mem_arena = False
     so.enable_mem_pattern = False  # formas variables: los patrones de memoria solo acumulan
     so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-    return ort.InferenceSession(ruta, so, providers=proveedores or ["CPUExecutionProvider"])
+    pf = os.environ.get("AMANUENSIS_ORT_PERFIL")  # carpeta: perfil por nodo de onnxruntime (medidas de velocidad)
+    if pf:
+        so.enable_profiling = True
+        so.profile_file_prefix = os.path.join(pf, os.path.basename(ruta).replace(".onnx", ""))
+    from .gpu import crear_sesion, elegir
+
+    s = crear_sesion(lambda: ort.InferenceSession(elegir(ruta, proveedores), so, providers=proveedores or ["CPUExecutionProvider"]), proveedores)
+    if pf:
+        SESIONES.append(s)
+    return s
+
+
+SESIONES: list = []  # solo con AMANUENSIS_ORT_PERFIL: para llamar a end_profiling() al terminar
 
 
 def sesgo_blanco(arrojo: float) -> float:
@@ -162,11 +174,40 @@ class LectorCTC:
                     lp = res["logp"][r, :t]
                     ii = np.argsort(-lp, -1)[:, :16]
                     v = np.take_along_axis(lp, ii, -1)
-                out[i] = self._decodificar(v, ii, sesgo)
+                out[i] = self._decodificar(v, ii, sesgo, i)
             k = j
+        return self._cerrar_haz(out)
+
+    haz = None  # decodificador con modelo de lengua (haz_lm.Decodificador) del modo prensa; None = lectura voraz
+    corrector = None  # corrector aprendido opcional (haz_lm.Corrector), tras el haz
+
+    def _decodificar(self, v, ii, sesgo, idx=None):
+        r = LectorCTC._voraz(self, v, ii, sesgo)  # (también lo llama el lector de Core ML con su propio self)
+        haz, cor = getattr(self, "haz", None), getattr(self, "corrector", None)
+        if haz is not None and idx is not None and getattr(haz, "lmn", None) is not None and len(r[0]):
+            # puerta del LM neuronal: necesita el renglón anterior, que aún no está leído: se aplica en _cerrar_haz al acabar `leer`
+            if getattr(self, "_pend", None) is None:
+                self._pend = {}
+            self._pend[idx] = (v, ii)
+            return r
+        if haz is not None and len(r[0]):
+            r = haz.decodificar(v, ii, self.chars, r)
+        if cor is not None and len(r[0]):
+            r = cor.corregir(*r, v, ii, self.chars)
+        return r
+
+    def _cerrar_haz(self, out):
+        """Aplica el haz con puerta neuronal a los renglones pendientes, con el texto del renglón anterior (en el orden de `recortes`) como contexto."""
+        pend = getattr(self, "_pend", None)
+        if not pend:
+            return out
+        self._pend = {}
+        for i in sorted(pend):
+            v, ii = pend[i]
+            out[i] = self.haz.decodificar(v, ii, self.chars, out[i], ant=out[i - 1][0] if i > 0 else "")
         return out
 
-    def _decodificar(self, v, ii, sesgo):
+    def _voraz(self, v, ii, sesgo):
         T = v.shape[0]
         if T == 0:
             return "", 0.0, [], []
@@ -199,15 +240,33 @@ class LectorCTC:
 
 
 class Completo:
-    def __init__(self, carpeta, proveedores=None, hilos=0, arrojo=0.5, presupuesto=0, coreml="auto"):
+    def __init__(self, carpeta, proveedores=None, hilos=0, arrojo=0.5, presupuesto=0, coreml="auto", prensa=False):
         """coreml: «auto» (en macOS con coremltools y los paquetes de completo.json → «coreml», el lector grande y la
         maquetación van en la GPU del Mac), «si» o «no»."""
         self.dir = carpeta
+        self._prov = proveedores
+        if self._en_gpu():  # pesos de 8 bits -> descuantizados para CUDA (una vez por carpeta; ver gpu.py)
+            from .gpu import preparar
+
+            preparar(carpeta)
         cfg = self.cfg = json.load(open(os.path.join(carpeta, "completo.json")))
         p = lambda k: os.path.join(carpeta, cfg["piezas"][k])
         self._p, self._hilos, self._prov = p, hilos, proveedores
-        self.s_base = _sesion(p("cod_base"), hilos, proveedores)
-        self.s_lin = _sesion(p("lineas"), hilos, proveedores)
+        self._s_base = None  # ONNX de cod_base: se carga solo si no hay Core ML o la página no cabe en sus cubos
+        # detector de renglones propio de la prensa (pieza opcional «lineas_prensa»: cajas dobles 26 -> 6 en GRESEL); solo con
+        # --prensa si y si el fichero está; AMANUENSIS_LINEAS_PRENSA=0 lo apaga
+        lp = cfg["piezas"].get("lineas_prensa")
+        usar_lp = prensa and lp and os.environ.get("AMANUENSIS_LINEAS_PRENSA", "1") != "0" and os.path.exists(os.path.join(carpeta, lp))
+        self.lineas_prensa = bool(usar_lp)
+        # maquetación y orden de prensa (maqueta v5p con sopa, 11-11: val 90 págs. 8,98 -> 8,31 de CER con p1_i50): piezas «*_prensa» del
+        # completo.json, solo con --prensa si; su Core ML sería el de v4e, así que la maqueta va en ONNX CPU (AMANUENSIS_MAQUETA_PRENSA=0 lo apaga)
+        pp = [cfg["piezas"].get(k + "_prensa") for k in ("cod_mq", "maqueta", "orden", "orden_par")]
+        self.maq_prensa = bool(prensa and all(pp) and os.environ.get("AMANUENSIS_MAQUETA_PRENSA", "1") != "0"
+                               and all(os.path.exists(os.path.join(carpeta, x)) for x in pp))
+        if self.maq_prensa:
+            p = lambda k, _p=p: os.path.join(carpeta, cfg["piezas"][k + "_prensa"]) if k in ("cod_mq", "maqueta", "orden", "orden_par") else _p(k)
+            self._p = p
+        self.s_lin = _sesion(os.path.join(carpeta, lp) if usar_lp else p("lineas"), hilos, proveedores)
         self.s_ord = _sesion(p("orden"), hilos, proveedores)
         self._s_mq = self._s_maq = None
         op = np.load(p("orden_par"))
@@ -221,16 +280,34 @@ class Completo:
             usar_cm = CM.disponible() and all(os.path.isdir(os.path.join(carpeta, v)) for v in cm.values())
             if coreml == "si" and not usar_cm:
                 raise RuntimeError("Core ML no disponible (macOS 15+, coremltools y los paquetes de completo.json)")
-        self.cm_maq = None
+        self.cm_maq = self.cm_base = None
+        self.con_coreml = bool(usar_cm)
+        # lector afinado en prensa (R3, 11-11): pieza opcional «lector_prensa» (ONNX) y coreml.lector_prensa; solo con --prensa si;
+        # AMANUENSIS_LECTOR_PRENSA=0 lo apaga. El impreso moderno y lo que no es prensa siguen con el lector 1.0.
+        lpr = cfg.get("lector_prensa")
+        usar_lpr = bool(prensa and lpr and os.environ.get("AMANUENSIS_LECTOR_PRENSA", "1") != "0" and os.path.isdir(os.path.join(carpeta, lpr)))
+        self.lector_prensa = usar_lpr
         if usar_cm:
-            self.lec = CM.LectorCTCCoreML(os.path.join(carpeta, cm["lector"]))
-            self.cm_maq = CM.MaquetaCoreML(os.path.join(carpeta, cm["maqueta"])) if "maqueta" in cm else None
+            if "cod_base" in cm:
+                self.cm_base = CM.CodBaseCoreML(os.path.join(carpeta, cm["cod_base"]))
+            if usar_lpr and "lector_prensa" in cm:
+                self.lec = CM.LectorCTCCoreML(os.path.join(carpeta, cm["lector_prensa"]))
+            elif usar_lpr:  # sin paquete Core ML del lector de prensa: ONNX
+                self.lec = LectorCTC(os.path.join(carpeta, lpr), vl, hilos=hilos, proveedores=proveedores)
+            else:
+                self.lec = CM.LectorCTCCoreML(os.path.join(carpeta, cm["lector"]))
+            mq_cm = cm.get("maqueta_prensa") if self.maq_prensa else cm.get("maqueta")
+            self.cm_maq = CM.MaquetaCoreML(os.path.join(carpeta, mq_cm)) if mq_cm else None
         else:
-            self.lec = LectorCTC(self._ruta(cfg["lector"]), vl, hilos=hilos, proveedores=proveedores)
+            self.lec = LectorCTC(os.path.join(carpeta, lpr) if usar_lpr else self._ruta(cfg["lector"]), vl, hilos=hilos, proveedores=proveedores)
         ml = cfg.get("lector_ml")
         self.ml = None
         if ml:
             try:
+                if self._en_gpu():
+                    from .gpu import preparar
+
+                    preparar(self._ruta(ml))
                 self.ml = LectorCTC(self._ruta(ml), vl, hilos=hilos, proveedores=proveedores)
             except FileNotFoundError:
                 self.ml = None
@@ -242,7 +319,8 @@ class Completo:
         self.umbral_ml = cfg.get("umbral_ml", 0.5)
         self.paso = cfg.get("paso_lineas", 2)
         self.arrojo = arrojo
-        self.presupuesto = presupuesto or cfg.get("presupuesto", 8 * 240)
+        # columnas por lote del lector (AMANUENSIS_PRESUPUESTO para medir lotes mayores en GPU; cambia el relleno de cada lote)
+        self.presupuesto = presupuesto or int(os.environ.get("AMANUENSIS_PRESUPUESTO", "0") or 0) or cfg.get("presupuesto", 8 * 240)
         self.crono = {}
         # rama densa (páginas con >= umbral renglones: otra maquetación, orden jerárquico y renglones por teselas)
         dz = cfg.get("densa") or {}
@@ -250,6 +328,39 @@ class Completo:
         self._dz = None
         if os.environ.get("AMANUENSIS_DENSA", "1") == "0":
             self.densa = None
+
+    def activar_haz(self, decodificador, corrector=None):
+        """Pone (o quita, con None) el haz con modelo de lengua y el corrector en el lector grande."""
+        self.lec.haz, self.lec.corrector = decodificador, corrector
+
+    @property
+    def s_base(self):
+        if self._s_base is None:
+            self._s_base = _sesion(self._p("cod_base"), self._hilos, self._prov)
+        return self._s_base
+
+    def entre_paginas(self):
+        """Llamar tras cada página: con Core ML, si la memoria física pasa del límite (AMANUENSIS_COREML_LIMITE_GB,
+        4,0 GB por defecto), suelta las funciones Core ML cargadas para que un lote largo quepa en 6 GB."""
+        if not self.con_coreml:
+            return
+        import gc
+
+        from . import completo_coreml as CM
+
+        gc.collect()
+        h, lim = CM.huella_gb(), float(os.environ.get("AMANUENSIS_COREML_LIMITE_GB", "4.0"))
+        if os.environ.get("AMANUENSIS_COREML_DEBUG") == "1":
+            print(f"  [coreml] huella {h:.2f} GB (límite {lim})", file=__import__("sys").stderr)
+        if h > lim:
+            if hasattr(self.lec, "f"):
+                self.lec.f.vaciar()
+            if self.cm_maq is not None:
+                self.cm_maq.f.vaciar()
+            if self.cm_base is not None:
+                self.cm_base.f.vaciar()
+            if os.environ.get("AMANUENSIS_COREML_DEBUG") == "1":
+                print(f"  [coreml] funciones soltadas: {CM.huella_gb():.2f} GB", file=__import__("sys").stderr)
 
     def _en_gpu(self):
         return bool(self._prov) and any((p[0] if isinstance(p, tuple) else p) == "CUDAExecutionProvider" for p in self._prov)
@@ -303,7 +414,12 @@ class Completo:
         Core ML) y renglones por teselas si la página los pide."""
         t0 = time.time()
         l9 = x["l9"].astype(np.float32)[None] / 255.0
-        est9 = self.s_base.run(["estados"], {"pixeles": l9})[0]
+        if self.cm_base is not None and self.cm_base.cabe(l9):
+            est9 = self.cm_base.estados(l9)
+        else:
+            est9 = self.s_base.run(["estados"], {"pixeles": l9})[0]
+        self._t("enc_base", t0)  # codificador de la página a ~960 px (ONNX CPU); el resto de «lineas» es la cabeza de renglones
+        t0 = time.time()
         gh, gw = l9.shape[1] // 16, l9.shape[2] // 16
         G = x["lz"].astype(np.float32)[None, None] / 255.0
         Hb, Wb = G.shape[-2:]
@@ -327,8 +443,8 @@ class Completo:
         elif self.cm_maq is not None and self.cm_maq.cabe(lm.shape[0]):
             zn, zr, ln, tb, y4, h16m = self.cm_maq.mapas(lm)
         else:
-            if self._s_mq is None:
-                self._s_mq = _sesion(self._p("cod_mq"), self._hilos, self._prov)
+            if self._s_mq is None or self._s_maq is None:  # (las dos: si falló la segunda, no queda una a medias)
+                self._s_mq = self._s_mq or _sesion(self._p("cod_mq"), self._hilos, self._prov)
                 self._s_maq = _sesion(self._p("maqueta"), self._hilos, self._prov)
             estm = self._s_mq.run(["estados"], {"pixeles": lm[None]})[0]
             zn, zr, ln, tb, y4, h16m = self._s_maq.run(None, {"gris": lm[None, None], "estados": estm})
